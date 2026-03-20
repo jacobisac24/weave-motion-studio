@@ -155,8 +155,29 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
   const midX = (posA[0] + posB[0]) / 2;
   const midY = (posA[1] + posB[1]) / 2;
 
-  // Vector angle for arrow
+  // Vector direction (A → B) and extension beyond both points
   const angle = Math.atan2(posB[1] - posA[1], posB[0] - posA[0]);
+  const dx = Math.cos(angle);
+  const dy = Math.sin(angle);
+
+  // Extension length scales with distance so the tangent stays visible
+  const extensionLen = Math.max(18, distance * 0.35);
+
+  // The full tangent line: starts before A, ends past B
+  const tangentStart: [number, number] = [
+    posA[0] - dx * extensionLen,
+    posA[1] - dy * extensionLen,
+  ];
+  const tangentEnd: [number, number] = [
+    posB[0] + dx * extensionLen,
+    posB[1] + dy * extensionLen,
+  ];
+
+  // Animate the vector creation: a sweep that grows from tangentStart through A, B, to tangentEnd
+  const vectorDrawP = easeInOutCubic(vectorP); // 0→1 over vectorAppear phase
+  // Interpolate the "tip" of the drawn vector from tangentStart → tangentEnd
+  const drawnTipX = lerp(tangentStart[0], tangentEnd[0], vectorDrawP);
+  const drawnTipY = lerp(tangentStart[1], tangentEnd[1], vectorDrawP);
 
   const accentHsl = `hsl(${cfg.accentColor})`;
   const pointHsl = `hsl(${cfg.pointColor})`;
