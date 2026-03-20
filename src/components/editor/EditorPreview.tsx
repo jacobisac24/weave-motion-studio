@@ -6,6 +6,7 @@ import type { Block } from "@/types/block";
 // Side-effect: ensure block types are registered
 import "@/blocks/triangle-slider";
 import "@/blocks/curve-vector";
+import "@/blocks/tangent-boxes";
 
 interface PreviewProps {
   playback: {

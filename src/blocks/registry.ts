@@ -32,6 +32,9 @@ import { TriangleSliderRenderer } from "./triangle-slider/TriangleSliderRenderer
 import { TRIANGLE_SLIDER_TYPE } from "./triangle-slider/config";
 import { CurveVectorRenderer } from "./curve-vector/CurveVectorRenderer";
 import { CURVE_VECTOR_TYPE } from "./curve-vector/config";
+import { TangentBoxesRenderer } from "./tangent-boxes/TangentBoxesRenderer";
+import { TANGENT_BOXES_TYPE } from "./tangent-boxes/config";
 
 registerBlockRenderer(TRIANGLE_SLIDER_TYPE, TriangleSliderRenderer as RendererEntry);
 registerBlockRenderer(CURVE_VECTOR_TYPE, CurveVectorRenderer as RendererEntry);
+registerBlockRenderer(TANGENT_BOXES_TYPE, TangentBoxesRenderer as RendererEntry);
