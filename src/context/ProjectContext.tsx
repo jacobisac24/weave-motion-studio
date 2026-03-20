@@ -213,6 +213,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     (name: string) => dispatch({ type: "SET_PROJECT_NAME", name }),
     []
   );
+  const loadProject = useCallback(
+    (project: Project) => dispatch({ type: "SET_PROJECT", project }),
+    []
+  );
+
+  React.useEffect(() => {
+    (window as any).__motionLoadProject = loadProject;
+    return () => { delete (window as any).__motionLoadProject; };
+  }, [loadProject]);
 
   const selectedBlock = useMemo(
     () =>
