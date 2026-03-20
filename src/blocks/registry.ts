@@ -30,5 +30,8 @@ export function getBlockRenderer(type: string): RendererEntry | undefined {
 // --- Register known block renderers ---
 import { TriangleSliderRenderer } from "./triangle-slider/TriangleSliderRenderer";
 import { TRIANGLE_SLIDER_TYPE } from "./triangle-slider/config";
+import { CurveVectorRenderer } from "./curve-vector/CurveVectorRenderer";
+import { CURVE_VECTOR_TYPE } from "./curve-vector/config";
 
 registerBlockRenderer(TRIANGLE_SLIDER_TYPE, TriangleSliderRenderer as RendererEntry);
+registerBlockRenderer(CURVE_VECTOR_TYPE, CurveVectorRenderer as RendererEntry);
