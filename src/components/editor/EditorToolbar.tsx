@@ -5,6 +5,7 @@ import { useVideoExport } from "@/hooks/useVideoExport";
 
 // Ensure block types are registered
 import "@/blocks/triangle-slider";
+import "@/blocks/curve-vector";
 
 export function EditorToolbar() {
   const { state, setProjectName, addBlock } = useProject();
