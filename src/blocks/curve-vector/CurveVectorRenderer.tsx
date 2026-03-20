@@ -155,40 +155,33 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
   const midX = (posA[0] + posB[0]) / 2;
   const midY = (posA[1] + posB[1]) / 2;
 
-  // Vector direction (A → B) — FIXED length, only direction changes
+  // Vector: FIXED total length, only direction changes
   const angle = Math.atan2(posB[1] - posA[1], posB[0] - posA[0]);
   const dxDir = Math.cos(angle);
   const dyDir = Math.sin(angle);
 
-  // Fixed extension beyond each point — consistent length
-  const extLen = Math.min(width, height) * 0.15;
-  const margin = 20;
-  const clampX = (v: number) => Math.max(margin, Math.min(width - margin, v));
-  const clampY = (v: number) => Math.max(margin, Math.min(height - margin, v));
+  // Constant total vector length
+  const fixedLen = Math.min(width, height) * 0.55;
+  const halfLen = fixedLen / 2;
 
-  // Vector extends beyond A (tail) and beyond B (head/arrow)
+  // Vector centered between the two points, extends equally both ways
   const vecTail: [number, number] = [
-    clampX(posA[0] - dxDir * extLen),
-    clampY(posA[1] - dyDir * extLen),
+    midX - dxDir * halfLen,
+    midY - dyDir * halfLen,
   ];
   const vecHead: [number, number] = [
-    clampX(posB[0] + dxDir * extLen),
-    clampY(posB[1] + dyDir * extLen),
+    midX + dxDir * halfLen,
+    midY + dyDir * halfLen,
   ];
 
-  // Animate vector creation: sweeps outward from midpoint of A-B
+  // Animate vector: grows left-to-right (from vecTail toward vecHead)
   const vectorDrawP = easeInOutCubic(vectorP);
-  // Tail grows from midpoint toward vecTail
-  const drawnTailX = lerp(midX, vecTail[0], vectorDrawP);
-  const drawnTailY = lerp(midY, vecTail[1], vectorDrawP);
-  // Head grows from midpoint toward vecHead
-  const drawnHeadX = lerp(midX, vecHead[0], vectorDrawP);
-  const drawnHeadY = lerp(midY, vecHead[1], vectorDrawP);
+  const drawnHeadX = lerp(vecTail[0], vecHead[0], vectorDrawP);
+  const drawnHeadY = lerp(vecTail[1], vecHead[1], vectorDrawP);
 
   const accentHsl = `hsl(${cfg.accentColor})`;
   const pointHsl = `hsl(${cfg.pointColor})`;
   const vectorHsl = `hsl(${cfg.vectorColor})`;
-  const dimVectorHsl = `hsl(${cfg.vectorColor} / 0.25)`;
 
   const arrowSize = 8;
 
@@ -199,8 +192,8 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
   ), [width, height]);
   const distRatio = distance / maxDist;
 
-  // Glow intensity increases as distance shrinks
-  const glowIntensity = showVector ? (1 - distRatio) * 0.7 : 0;
+  // Glow intensity
+  const glowIntensity = showVector ? 0.6 : 0;
 
   return (
     <svg

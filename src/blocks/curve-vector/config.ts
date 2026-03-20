@@ -22,7 +22,7 @@ export interface CurveVectorConfig {
 export const defaultCurveVectorConfig: CurveVectorConfig = {
   accentColor: "220 14% 76%",
   pointColor: "0 0% 96%",
-  vectorColor: "168 60% 50%",
+  vectorColor: "200 90% 65%",
   strokeWeight: 2.5,
   pointRadius: 5,
   phases: {
