@@ -161,7 +161,7 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
   const dyDir = Math.sin(angle);
 
   // Constant total vector length
-  const fixedLen = Math.min(width, height) * 0.75;
+  const fixedLen = Math.min(width, height) * 1.125;
   const halfLen = fixedLen / 2;
 
   // Vector centered between the two points, extends equally both ways
