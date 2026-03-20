@@ -110,12 +110,12 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
   const phases = useMemo(() => buildPhases(cfg.phases), [cfg.phases]);
   const p = clamp01(progress);
 
-  // Define a graceful S-curve across the canvas (pulled inward for boundary safety)
-  const pad = width * 0.18;
-  const p0: [number, number] = [pad, height * 0.6];
-  const p1: [number, number] = [width * 0.32, height * 0.2];
-  const p2: [number, number] = [width * 0.68, height * 0.8];
-  const p3: [number, number] = [width - pad, height * 0.4];
+  // Define a graceful S-curve across the canvas
+  const pad = width * 0.1;
+  const p0: [number, number] = [pad, height * 0.62];
+  const p1: [number, number] = [width * 0.3, height * 0.12];
+  const p2: [number, number] = [width * 0.7, height * 0.88];
+  const p3: [number, number] = [width - pad, height * 0.38];
 
   const fullPath = bezierPath(p0, p1, p2, p3);
   const totalLength = useMemo(() => bezierLength(p0, p1, p2, p3), [width, height]);
@@ -124,8 +124,8 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
   const curveDrawP = clamp01(p / phases[0]);
   const pointsP = clamp01((p - phases[0]) / (phases[1] - phases[0]));
   const vectorP = clamp01((p - phases[1]) / (phases[2] - phases[1]));
-  // Hold phase: pause between vector complete and convergence start
-  const holdEnd = phases[2] + cfg.phases.settle * 0.5; // use half of settle as hold
+  // Hold: pause after vector creation before convergence
+  const holdEnd = phases[2] + cfg.phases.settle * 0.6;
   const convergeP = clamp01((p - holdEnd) / (phases[3] - holdEnd));
 
   // ---- Curve draw animation ----
@@ -160,37 +160,37 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
   const dxDir = Math.cos(angle);
   const dyDir = Math.sin(angle);
 
-  // Fixed half-length from center: consistent regardless of point distance
-  const fixedHalfLen = Math.min(width, height) * 0.28;
-  const vecCenterX = midX;
-  const vecCenterY = midY;
-
-  // Clamp vector endpoints to stay within canvas with margin
-  const margin = 24;
+  // Fixed extension beyond each point — consistent length
+  const extLen = Math.min(width, height) * 0.15;
+  const margin = 20;
   const clampX = (v: number) => Math.max(margin, Math.min(width - margin, v));
   const clampY = (v: number) => Math.max(margin, Math.min(height - margin, v));
 
-  const tangentStart: [number, number] = [
-    clampX(vecCenterX - dxDir * fixedHalfLen),
-    clampY(vecCenterY - dyDir * fixedHalfLen),
+  // Vector extends beyond A (tail) and beyond B (head/arrow)
+  const vecTail: [number, number] = [
+    clampX(posA[0] - dxDir * extLen),
+    clampY(posA[1] - dyDir * extLen),
   ];
-  const tangentEnd: [number, number] = [
-    clampX(vecCenterX + dxDir * fixedHalfLen),
-    clampY(vecCenterY + dyDir * fixedHalfLen),
+  const vecHead: [number, number] = [
+    clampX(posB[0] + dxDir * extLen),
+    clampY(posB[1] + dyDir * extLen),
   ];
 
-  // Animate the vector creation sweep
+  // Animate vector creation: sweeps outward from midpoint of A-B
   const vectorDrawP = easeInOutCubic(vectorP);
-  const drawnTipX = lerp(tangentStart[0], tangentEnd[0], vectorDrawP);
-  const drawnTipY = lerp(tangentStart[1], tangentEnd[1], vectorDrawP);
+  // Tail grows from midpoint toward vecTail
+  const drawnTailX = lerp(midX, vecTail[0], vectorDrawP);
+  const drawnTailY = lerp(midY, vecTail[1], vectorDrawP);
+  // Head grows from midpoint toward vecHead
+  const drawnHeadX = lerp(midX, vecHead[0], vectorDrawP);
+  const drawnHeadY = lerp(midY, vecHead[1], vectorDrawP);
 
   const accentHsl = `hsl(${cfg.accentColor})`;
   const pointHsl = `hsl(${cfg.pointColor})`;
   const vectorHsl = `hsl(${cfg.vectorColor})`;
-  const dimVectorHsl = `hsl(${cfg.vectorColor} / 0.3)`;
+  const dimVectorHsl = `hsl(${cfg.vectorColor} / 0.25)`;
 
-  // Arrowhead — fixed size
-  const arrowSize = 7;
+  const arrowSize = 8;
 
   // Distance label
   const maxDist = useMemo(() => dist(
