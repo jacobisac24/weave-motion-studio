@@ -277,33 +277,32 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
         />
       )}
 
-      {/* Vector line between points */}
+      {/* Vector line */}
       {showVector && (
         <g opacity={vectorOpacity}>
-          {/* Extended tangent line (dim, shows full direction) */}
+          {/* Dashed guide showing full extent (after draw completes) */}
           {vectorDrawP >= 1 && (
             <line
-              x1={tangentStart[0]}
-              y1={tangentStart[1]}
-              x2={tangentEnd[0]}
-              y2={tangentEnd[1]}
+              x1={vecTail[0]}
+              y1={vecTail[1]}
+              x2={vecHead[0]}
+              y2={vecHead[1]}
               stroke={dimVectorHsl}
               strokeWidth={1}
               strokeDasharray="4 4"
             />
           )}
-          {/* Animated vector sweep: grows from tangentStart → tangentEnd */}
+          {/* Animated sweep: grows outward from center in both directions */}
           <line
-            x1={tangentStart[0]}
-            y1={tangentStart[1]}
-            x2={drawnTipX}
-            y2={drawnTipY}
+            x1={drawnTailX}
+            y1={drawnTailY}
+            x2={drawnHeadX}
+            y2={drawnHeadY}
             stroke={vectorHsl}
             strokeWidth={2}
             strokeLinecap="round"
-            filter={glowIntensity > 0.2 ? "url(#cv-glow)" : undefined}
           />
-          {/* Solid segment A→B on top */}
+          {/* Solid A→B segment on top */}
           {vectorDrawP >= 1 && (
             <line
               x1={posA[0]}
@@ -316,12 +315,13 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
               filter={glowIntensity > 0.2 ? "url(#cv-glow)" : undefined}
             />
           )}
-          {/* Arrowhead at the extended tip */}
-          {distance > 12 && vectorDrawP >= 1 && (
+          {/* Arrowhead at the vector HEAD (beyond point B) */}
+          {vectorDrawP >= 0.95 && (
             <polygon
-              points={`0,0 ${-arrowSize * 2},${-arrowSize} ${-arrowSize * 2},${arrowSize}`}
+              points={`0,0 ${-arrowSize * 2.2},${-arrowSize} ${-arrowSize * 2.2},${arrowSize}`}
               fill={vectorHsl}
-              transform={`translate(${tangentEnd[0]},${tangentEnd[1]}) rotate(${(angle * 180) / Math.PI})`}
+              transform={`translate(${vecHead[0]},${vecHead[1]}) rotate(${(angle * 180) / Math.PI})`}
+              opacity={vectorOpacity}
             />
           )}
         </g>
