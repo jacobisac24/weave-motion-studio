@@ -275,33 +275,48 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
       {/* Vector line between points */}
       {showVector && (
         <g opacity={vectorOpacity}>
-          {/* Dashed guide showing the "gap" */}
+          {/* Extended tangent line (dim, shows full direction) */}
+          {vectorDrawP >= 1 && (
+            <line
+              x1={tangentStart[0]}
+              y1={tangentStart[1]}
+              x2={tangentEnd[0]}
+              y2={tangentEnd[1]}
+              stroke={dimVectorHsl}
+              strokeWidth={1}
+              strokeDasharray="4 4"
+            />
+          )}
+          {/* Animated vector sweep: grows from tangentStart → tangentEnd */}
           <line
-            x1={posA[0]}
-            y1={posA[1]}
-            x2={posB[0]}
-            y2={posB[1]}
-            stroke={dimVectorHsl}
-            strokeWidth={1}
-            strokeDasharray="4 4"
-          />
-          {/* Main vector */}
-          <line
-            x1={posA[0]}
-            y1={posA[1]}
-            x2={posB[0]}
-            y2={posB[1]}
+            x1={tangentStart[0]}
+            y1={tangentStart[1]}
+            x2={drawnTipX}
+            y2={drawnTipY}
             stroke={vectorHsl}
             strokeWidth={Math.max(1.5, 2.5 * distRatio)}
             strokeLinecap="round"
             filter={glowIntensity > 0.2 ? "url(#cv-glow)" : undefined}
           />
-          {/* Arrowhead at B */}
-          {distance > 12 && (
+          {/* Solid segment A→B on top */}
+          {vectorDrawP >= 1 && (
+            <line
+              x1={posA[0]}
+              y1={posA[1]}
+              x2={posB[0]}
+              y2={posB[1]}
+              stroke={vectorHsl}
+              strokeWidth={Math.max(1.5, 2.5 * distRatio) + 0.5}
+              strokeLinecap="round"
+              filter={glowIntensity > 0.2 ? "url(#cv-glow)" : undefined}
+            />
+          )}
+          {/* Arrowhead at the extended tip */}
+          {distance > 12 && vectorDrawP >= 1 && (
             <polygon
               points={`0,0 ${-arrowSize * 2},${-arrowSize} ${-arrowSize * 2},${arrowSize}`}
               fill={vectorHsl}
-              transform={`translate(${posB[0]},${posB[1]}) rotate(${(angle * 180) / Math.PI})`}
+              transform={`translate(${tangentEnd[0]},${tangentEnd[1]}) rotate(${(angle * 180) / Math.PI})`}
             />
           )}
         </g>
