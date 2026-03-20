@@ -273,48 +273,25 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
       {/* Vector line */}
       {showVector && (
         <g opacity={vectorOpacity}>
-          {/* Dashed guide showing full extent (after draw completes) */}
-          {vectorDrawP >= 1 && (
-            <line
-              x1={vecTail[0]}
-              y1={vecTail[1]}
-              x2={vecHead[0]}
-              y2={vecHead[1]}
-              stroke={dimVectorHsl}
-              strokeWidth={1}
-              strokeDasharray="4 4"
-            />
-          )}
-          {/* Animated sweep: grows outward from center in both directions */}
+          {/* Animated sweep: grows left to right from tail to head */}
           <line
-            x1={drawnTailX}
-            y1={drawnTailY}
+            x1={vecTail[0]}
+            y1={vecTail[1]}
             x2={drawnHeadX}
             y2={drawnHeadY}
             stroke={vectorHsl}
             strokeWidth={2}
             strokeLinecap="round"
+            filter="url(#cv-glow)"
           />
-          {/* Solid A→B segment on top */}
-          {vectorDrawP >= 1 && (
-            <line
-              x1={posA[0]}
-              y1={posA[1]}
-              x2={posB[0]}
-              y2={posB[1]}
-              stroke={vectorHsl}
-              strokeWidth={2.5}
-              strokeLinecap="round"
-              filter={glowIntensity > 0.2 ? "url(#cv-glow)" : undefined}
-            />
-          )}
-          {/* Arrowhead at the vector HEAD (beyond point B) */}
+          {/* Arrowhead at the vector tip */}
           {vectorDrawP >= 0.95 && (
             <polygon
               points={`0,0 ${-arrowSize * 2.2},${-arrowSize} ${-arrowSize * 2.2},${arrowSize}`}
               fill={vectorHsl}
               transform={`translate(${vecHead[0]},${vecHead[1]}) rotate(${(angle * 180) / Math.PI})`}
               opacity={vectorOpacity}
+              filter="url(#cv-point-glow)"
             />
           )}
         </g>
