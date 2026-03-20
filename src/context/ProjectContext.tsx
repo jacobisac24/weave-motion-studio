@@ -146,16 +146,14 @@ const defaultState: ProjectState = {
 // --- Context ---
 interface ProjectContextValue {
   state: ProjectState;
-  // Block actions
   addBlock: (type?: string) => void;
   updateBlock: (id: string, updates: Partial<Block>) => void;
   deleteBlock: (id: string) => void;
   duplicateBlock: (id: string) => void;
   selectBlock: (id: string | null) => void;
   reorderBlock: (blockId: string, newStartTime: number) => void;
-  // Project actions
   setProjectName: (name: string) => void;
-  // Derived
+  loadProject: (project: Project) => void;
   selectedBlock: Block | null;
   totalDuration: number;
   sortedBlocks: Block[];
