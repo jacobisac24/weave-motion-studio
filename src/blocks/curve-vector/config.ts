@@ -28,9 +28,9 @@ export const defaultCurveVectorConfig: CurveVectorConfig = {
   phases: {
     curveDraw: 0.25,
     pointsAppear: 0.08,
-    vectorAppear: 0.07,
-    converge: 0.5,
-    settle: 0.1,
+    vectorAppear: 0.15,
+    converge: 0.45,
+    settle: 0.07,
   },
 };
 

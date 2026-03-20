@@ -155,8 +155,29 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
   const midX = (posA[0] + posB[0]) / 2;
   const midY = (posA[1] + posB[1]) / 2;
 
-  // Vector angle for arrow
+  // Vector direction (A → B) and extension beyond both points
   const angle = Math.atan2(posB[1] - posA[1], posB[0] - posA[0]);
+  const dx = Math.cos(angle);
+  const dy = Math.sin(angle);
+
+  // Extension length scales with distance so the tangent stays visible
+  const extensionLen = Math.max(18, distance * 0.35);
+
+  // The full tangent line: starts before A, ends past B
+  const tangentStart: [number, number] = [
+    posA[0] - dx * extensionLen,
+    posA[1] - dy * extensionLen,
+  ];
+  const tangentEnd: [number, number] = [
+    posB[0] + dx * extensionLen,
+    posB[1] + dy * extensionLen,
+  ];
+
+  // Animate the vector creation: a sweep that grows from tangentStart through A, B, to tangentEnd
+  const vectorDrawP = easeInOutCubic(vectorP); // 0→1 over vectorAppear phase
+  // Interpolate the "tip" of the drawn vector from tangentStart → tangentEnd
+  const drawnTipX = lerp(tangentStart[0], tangentEnd[0], vectorDrawP);
+  const drawnTipY = lerp(tangentStart[1], tangentEnd[1], vectorDrawP);
 
   const accentHsl = `hsl(${cfg.accentColor})`;
   const pointHsl = `hsl(${cfg.pointColor})`;
@@ -254,33 +275,48 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
       {/* Vector line between points */}
       {showVector && (
         <g opacity={vectorOpacity}>
-          {/* Dashed guide showing the "gap" */}
+          {/* Extended tangent line (dim, shows full direction) */}
+          {vectorDrawP >= 1 && (
+            <line
+              x1={tangentStart[0]}
+              y1={tangentStart[1]}
+              x2={tangentEnd[0]}
+              y2={tangentEnd[1]}
+              stroke={dimVectorHsl}
+              strokeWidth={1}
+              strokeDasharray="4 4"
+            />
+          )}
+          {/* Animated vector sweep: grows from tangentStart → tangentEnd */}
           <line
-            x1={posA[0]}
-            y1={posA[1]}
-            x2={posB[0]}
-            y2={posB[1]}
-            stroke={dimVectorHsl}
-            strokeWidth={1}
-            strokeDasharray="4 4"
-          />
-          {/* Main vector */}
-          <line
-            x1={posA[0]}
-            y1={posA[1]}
-            x2={posB[0]}
-            y2={posB[1]}
+            x1={tangentStart[0]}
+            y1={tangentStart[1]}
+            x2={drawnTipX}
+            y2={drawnTipY}
             stroke={vectorHsl}
             strokeWidth={Math.max(1.5, 2.5 * distRatio)}
             strokeLinecap="round"
             filter={glowIntensity > 0.2 ? "url(#cv-glow)" : undefined}
           />
-          {/* Arrowhead at B */}
-          {distance > 12 && (
+          {/* Solid segment A→B on top */}
+          {vectorDrawP >= 1 && (
+            <line
+              x1={posA[0]}
+              y1={posA[1]}
+              x2={posB[0]}
+              y2={posB[1]}
+              stroke={vectorHsl}
+              strokeWidth={Math.max(1.5, 2.5 * distRatio) + 0.5}
+              strokeLinecap="round"
+              filter={glowIntensity > 0.2 ? "url(#cv-glow)" : undefined}
+            />
+          )}
+          {/* Arrowhead at the extended tip */}
+          {distance > 12 && vectorDrawP >= 1 && (
             <polygon
               points={`0,0 ${-arrowSize * 2},${-arrowSize} ${-arrowSize * 2},${arrowSize}`}
               fill={vectorHsl}
-              transform={`translate(${posB[0]},${posB[1]}) rotate(${(angle * 180) / Math.PI})`}
+              transform={`translate(${tangentEnd[0]},${tangentEnd[1]}) rotate(${(angle * 180) / Math.PI})`}
             />
           )}
         </g>
