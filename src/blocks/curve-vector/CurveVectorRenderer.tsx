@@ -299,7 +299,7 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
             x2={drawnTipX}
             y2={drawnTipY}
             stroke={vectorHsl}
-            strokeWidth={Math.max(1.5, 2.5 * distRatio)}
+            strokeWidth={2}
             strokeLinecap="round"
             filter={glowIntensity > 0.2 ? "url(#cv-glow)" : undefined}
           />
