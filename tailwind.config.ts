@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['"JetBrains Mono"', '"Fira Code"', 'monospace'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -46,6 +50,22 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        editor: {
+          bg: "hsl(var(--editor-bg))",
+          surface: "hsl(var(--editor-surface))",
+          "surface-hover": "hsl(var(--editor-surface-hover))",
+          panel: "hsl(var(--editor-panel))",
+          border: "hsl(var(--editor-border))",
+          playhead: "hsl(var(--editor-playhead))",
+          block: "hsl(var(--editor-block))",
+          "block-selected": "hsl(var(--editor-block-selected))",
+          "block-border": "hsl(var(--editor-block-border))",
+          "block-selected-border": "hsl(var(--editor-block-selected-border))",
+          "timeline-bg": "hsl(var(--editor-timeline-bg))",
+          "timeline-ruler": "hsl(var(--editor-timeline-ruler))",
+          "text-dim": "hsl(var(--editor-text-dim))",
+          "text-bright": "hsl(var(--editor-text-bright))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
