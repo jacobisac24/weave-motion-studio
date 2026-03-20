@@ -1,6 +1,10 @@
 import { Play, Pause, RotateCcw } from "lucide-react";
 import { useProject } from "@/context/ProjectContext";
+import { getBlockRenderer } from "@/blocks/registry";
 import type { Block } from "@/types/block";
+
+// Side-effect: ensure block types are registered
+import "@/blocks/triangle-slider";
 
 interface PreviewProps {
   playback: {
@@ -15,7 +19,7 @@ interface PreviewProps {
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
-  const f = Math.floor((seconds % 1) * 30); // frames at 30fps
+  const f = Math.floor((seconds % 1) * 30);
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}:${String(f).padStart(2, "0")}`;
 }
 
@@ -27,8 +31,17 @@ function getActiveBlock(blocks: Block[], time: number): Block | null {
 }
 
 export function EditorPreview({ playback }: PreviewProps) {
-  const { sortedBlocks, totalDuration, selectBlock } = useProject();
+  const { sortedBlocks, totalDuration, selectBlock, state } = useProject();
   const activeBlock = getActiveBlock(sortedBlocks, playback.currentTime);
+
+  // Try to get a renderer for the active block
+  const Renderer = activeBlock ? getBlockRenderer(activeBlock.type) : undefined;
+  const blockProgress = activeBlock
+    ? Math.min(1, Math.max(0, (playback.currentTime - activeBlock.startTime) / activeBlock.duration))
+    : 0;
+
+  const canvasW = state.project.width;
+  const canvasH = state.project.height;
 
   return (
     <div className="flex flex-col items-center gap-3 w-full max-w-4xl">
@@ -37,20 +50,29 @@ export function EditorPreview({ playback }: PreviewProps) {
         className="relative w-full bg-background rounded border border-editor-border overflow-hidden"
         style={{ aspectRatio: "16 / 9" }}
       >
-        {/* Stage — future render target */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          {activeBlock ? (
-            <button
-              className="text-center cursor-pointer bg-transparent border-none outline-none"
-              onClick={() => selectBlock(activeBlock.id)}
-            >
-              <p className="text-sm font-medium text-foreground">{activeBlock.name}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {activeBlock.hasContent ? "Playing…" : "No content — awaiting generation"}
-              </p>
-            </button>
+        {/* Stage */}
+        <div className="absolute inset-0">
+          {activeBlock && Renderer ? (
+            <Renderer
+              progress={blockProgress}
+              width={canvasW}
+              height={canvasH}
+              config={activeBlock.config}
+            />
+          ) : activeBlock ? (
+            <div className="flex items-center justify-center h-full">
+              <button
+                className="text-center cursor-pointer bg-transparent border-none outline-none"
+                onClick={() => selectBlock(activeBlock.id)}
+              >
+                <p className="text-sm font-medium text-foreground">{activeBlock.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {activeBlock.hasContent ? "Playing…" : "No content — awaiting generation"}
+                </p>
+              </button>
+            </div>
           ) : (
-            <div className="text-center">
+            <div className="flex items-center justify-center h-full text-center">
               <p className="text-xs text-editor-text-dim">
                 {sortedBlocks.length === 0
                   ? "Add blocks to the timeline to begin"

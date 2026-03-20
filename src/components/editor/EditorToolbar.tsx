@@ -1,8 +1,13 @@
 import { useProject } from "@/context/ProjectContext";
-import { Film, FolderOpen, Save, Download } from "lucide-react";
+import { blockRegistry } from "@/context/ProjectContext";
+import { Film, FolderOpen, Save, Download, Plus } from "lucide-react";
+
+// Ensure block types are registered
+import "@/blocks/triangle-slider";
 
 export function EditorToolbar() {
-  const { state, setProjectName } = useProject();
+  const { state, setProjectName, addBlock } = useProject();
+  const blockTypes = blockRegistry.getAll();
 
   return (
     <header className="h-11 flex items-center justify-between px-3 bg-editor-surface border-b border-editor-border flex-shrink-0">
@@ -18,6 +23,21 @@ export function EditorToolbar() {
           value={state.project.name}
           onChange={(e) => setProjectName(e.target.value)}
         />
+      </div>
+
+      {/* Center: add block dropdown */}
+      <div className="flex items-center gap-1">
+        {blockTypes.map((desc) => (
+          <button
+            key={desc.type}
+            onClick={() => addBlock(desc.type)}
+            className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-editor-surface-hover rounded transition-colors active:scale-[0.97]"
+            title={desc.description}
+          >
+            <Plus className="w-3 h-3" />
+            {desc.label}
+          </button>
+        ))}
       </div>
 
       {/* Right: action buttons */}
