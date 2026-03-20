@@ -146,16 +146,14 @@ const defaultState: ProjectState = {
 // --- Context ---
 interface ProjectContextValue {
   state: ProjectState;
-  // Block actions
   addBlock: (type?: string) => void;
   updateBlock: (id: string, updates: Partial<Block>) => void;
   deleteBlock: (id: string) => void;
   duplicateBlock: (id: string) => void;
   selectBlock: (id: string | null) => void;
   reorderBlock: (blockId: string, newStartTime: number) => void;
-  // Project actions
   setProjectName: (name: string) => void;
-  // Derived
+  loadProject: (project: Project) => void;
   selectedBlock: Block | null;
   totalDuration: number;
   sortedBlocks: Block[];
@@ -215,6 +213,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     (name: string) => dispatch({ type: "SET_PROJECT_NAME", name }),
     []
   );
+  const loadProject = useCallback(
+    (project: Project) => dispatch({ type: "SET_PROJECT", project }),
+    []
+  );
+
+  React.useEffect(() => {
+    (window as any).__motionLoadProject = loadProject;
+    return () => { delete (window as any).__motionLoadProject; };
+  }, [loadProject]);
 
   const selectedBlock = useMemo(
     () =>
@@ -249,6 +256,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       selectBlock,
       reorderBlock,
       setProjectName,
+      loadProject,
       selectedBlock,
       totalDuration,
       sortedBlocks,
@@ -262,6 +270,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       selectBlock,
       reorderBlock,
       setProjectName,
+      loadProject,
       selectedBlock,
       totalDuration,
       sortedBlocks,
