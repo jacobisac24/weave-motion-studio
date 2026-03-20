@@ -22,15 +22,15 @@ export interface CurveVectorConfig {
 export const defaultCurveVectorConfig: CurveVectorConfig = {
   accentColor: "220 14% 76%",
   pointColor: "0 0% 96%",
-  vectorColor: "43 100% 65%",
+  vectorColor: "24 80% 58%",
   strokeWeight: 2.5,
   pointRadius: 5,
   phases: {
-    curveDraw: 0.25,
-    pointsAppear: 0.08,
-    vectorAppear: 0.15,
-    converge: 0.45,
-    settle: 0.07,
+    curveDraw: 0.22,
+    pointsAppear: 0.07,
+    vectorAppear: 0.13,
+    converge: 0.42,
+    settle: 0.16,
   },
 };
 

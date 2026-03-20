@@ -110,12 +110,12 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
   const phases = useMemo(() => buildPhases(cfg.phases), [cfg.phases]);
   const p = clamp01(progress);
 
-  // Define a graceful S-curve across the canvas
-  const pad = width * 0.12;
-  const p0: [number, number] = [pad, height * 0.65];
-  const p1: [number, number] = [width * 0.3, height * 0.15];
-  const p2: [number, number] = [width * 0.7, height * 0.85];
-  const p3: [number, number] = [width - pad, height * 0.35];
+  // Define a graceful S-curve across the canvas (pulled inward for boundary safety)
+  const pad = width * 0.18;
+  const p0: [number, number] = [pad, height * 0.6];
+  const p1: [number, number] = [width * 0.32, height * 0.2];
+  const p2: [number, number] = [width * 0.68, height * 0.8];
+  const p3: [number, number] = [width - pad, height * 0.4];
 
   const fullPath = bezierPath(p0, p1, p2, p3);
   const totalLength = useMemo(() => bezierLength(p0, p1, p2, p3), [width, height]);
@@ -124,18 +124,18 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
   const curveDrawP = clamp01(p / phases[0]);
   const pointsP = clamp01((p - phases[0]) / (phases[1] - phases[0]));
   const vectorP = clamp01((p - phases[1]) / (phases[2] - phases[1]));
-  const convergeP = clamp01((p - phases[2]) / (phases[3] - phases[2]));
-  // settle just holds
+  // Hold phase: pause between vector complete and convergence start
+  const holdEnd = phases[2] + cfg.phases.settle * 0.5; // use half of settle as hold
+  const convergeP = clamp01((p - holdEnd) / (phases[3] - holdEnd));
 
   // ---- Curve draw animation ----
   const drawProgress = easeInOutCubic(curveDrawP);
   const dashOffset = totalLength * (1 - drawProgress);
 
   // ---- Point positions along the curve ----
-  // Points start at t=0.15 and t=0.85 on the curve
-  const startA = 0.15;
-  const startB = 0.85;
-  const meetPoint = 0.5; // they converge to the middle
+  const startA = 0.2;
+  const startB = 0.8;
+  const meetPoint = 0.5;
 
   const easedConverge = easeInOutQuad(convergeP);
   const tA = lerp(startA, meetPoint, easedConverge);
@@ -155,39 +155,44 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
   const midX = (posA[0] + posB[0]) / 2;
   const midY = (posA[1] + posB[1]) / 2;
 
-  // Vector direction (A → B) and extension beyond both points
+  // Vector direction (A → B) — FIXED length, only direction changes
   const angle = Math.atan2(posB[1] - posA[1], posB[0] - posA[0]);
-  const dx = Math.cos(angle);
-  const dy = Math.sin(angle);
+  const dxDir = Math.cos(angle);
+  const dyDir = Math.sin(angle);
 
-  // Extension length scales with distance so the tangent stays visible
-  const extensionLen = Math.max(18, distance * 0.35);
+  // Fixed half-length from center: consistent regardless of point distance
+  const fixedHalfLen = Math.min(width, height) * 0.28;
+  const vecCenterX = midX;
+  const vecCenterY = midY;
 
-  // The full tangent line: starts before A, ends past B
+  // Clamp vector endpoints to stay within canvas with margin
+  const margin = 24;
+  const clampX = (v: number) => Math.max(margin, Math.min(width - margin, v));
+  const clampY = (v: number) => Math.max(margin, Math.min(height - margin, v));
+
   const tangentStart: [number, number] = [
-    posA[0] - dx * extensionLen,
-    posA[1] - dy * extensionLen,
+    clampX(vecCenterX - dxDir * fixedHalfLen),
+    clampY(vecCenterY - dyDir * fixedHalfLen),
   ];
   const tangentEnd: [number, number] = [
-    posB[0] + dx * extensionLen,
-    posB[1] + dy * extensionLen,
+    clampX(vecCenterX + dxDir * fixedHalfLen),
+    clampY(vecCenterY + dyDir * fixedHalfLen),
   ];
 
-  // Animate the vector creation: a sweep that grows from tangentStart through A, B, to tangentEnd
-  const vectorDrawP = easeInOutCubic(vectorP); // 0→1 over vectorAppear phase
-  // Interpolate the "tip" of the drawn vector from tangentStart → tangentEnd
+  // Animate the vector creation sweep
+  const vectorDrawP = easeInOutCubic(vectorP);
   const drawnTipX = lerp(tangentStart[0], tangentEnd[0], vectorDrawP);
   const drawnTipY = lerp(tangentStart[1], tangentEnd[1], vectorDrawP);
 
   const accentHsl = `hsl(${cfg.accentColor})`;
   const pointHsl = `hsl(${cfg.pointColor})`;
   const vectorHsl = `hsl(${cfg.vectorColor})`;
-  const dimVectorHsl = `hsl(${cfg.vectorColor} / 0.4)`;
+  const dimVectorHsl = `hsl(${cfg.vectorColor} / 0.3)`;
 
-  // Arrowhead size scales down as points converge
-  const arrowSize = Math.max(4, Math.min(10, distance * 0.08));
+  // Arrowhead — fixed size
+  const arrowSize = 7;
 
-  // Distance label — shrinks emphasis
+  // Distance label
   const maxDist = useMemo(() => dist(
     cubicBezier(p0, p1, p2, p3, startA),
     cubicBezier(p0, p1, p2, p3, startB)
@@ -294,7 +299,7 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
             x2={drawnTipX}
             y2={drawnTipY}
             stroke={vectorHsl}
-            strokeWidth={Math.max(1.5, 2.5 * distRatio)}
+            strokeWidth={2}
             strokeLinecap="round"
             filter={glowIntensity > 0.2 ? "url(#cv-glow)" : undefined}
           />
@@ -306,7 +311,7 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
               x2={posB[0]}
               y2={posB[1]}
               stroke={vectorHsl}
-              strokeWidth={Math.max(1.5, 2.5 * distRatio) + 0.5}
+              strokeWidth={2.5}
               strokeLinecap="round"
               filter={glowIntensity > 0.2 ? "url(#cv-glow)" : undefined}
             />
