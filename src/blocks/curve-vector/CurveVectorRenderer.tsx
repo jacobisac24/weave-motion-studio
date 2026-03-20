@@ -205,9 +205,11 @@ export function CurveVectorRenderer({ progress, width, height, config: overrides
       <defs>
         {/* Glow filter for convergence emphasis */}
         <filter id="cv-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="6" result="blur" />
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feFlood floodColor="hsl(200 90% 65%)" floodOpacity="0.35" result="color" />
+          <feComposite in="color" in2="blur" operator="in" result="colorBlur" />
           <feMerge>
-            <feMergeNode in="blur" />
+            <feMergeNode in="colorBlur" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
