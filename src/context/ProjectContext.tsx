@@ -223,13 +223,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   );
 
   const totalDuration = useMemo(
-    () =>
-      state.project.durationOverride ??
-      state.project.blocks.reduce(
+    () => {
+      if (state.project.durationOverride != null) return state.project.durationOverride;
+      const computed = state.project.blocks.reduce(
         (max, b) => Math.max(max, b.startTime + b.duration),
         0
-      ) ||
-      10,
+      );
+      return computed || 10;
+    },
     [state.project.blocks, state.project.durationOverride]
   );
 
