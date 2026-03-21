@@ -137,105 +137,110 @@ function StrokeSlider({
   value: number; min: number; max: number;
   color: string; opacity: number;
 }) {
-  const h = 26;
-  const trackY = y;
+  const outerH = 38;
+  const outerR = outerH / 2;
+  const labelSectionW = 72;
+  const totalW = w;
+  const trackPadL = labelSectionW + 16;
+  const trackPadR = 16;
+  const trackW = totalW - trackPadL - trackPadR;
   const frac = (value - min) / (max - min);
-  const handleX = x + frac * w;
+  const handleX = x + trackPadL + frac * trackW;
   const tickCount = max - min + 1;
-  const labelW = 52;
-  const labelH = 22;
+  const tickSpacing = trackW / (tickCount - 1);
 
   return (
     <g opacity={opacity}>
-      {/* Outer frame — rounded pill, stroke only */}
+      {/* Outer unified pill */}
       <rect
-        x={x - 10}
-        y={trackY - h / 2}
-        width={w + 20}
-        height={h}
-        rx={h / 2}
+        x={x}
+        y={y - outerH / 2}
+        width={totalW}
+        height={outerH}
+        rx={outerR}
         fill="none"
         stroke={color}
-        strokeWidth={1.2}
+        strokeWidth={1.8}
+        opacity={0.7}
+      />
+
+      {/* Label section — inner rounded rect */}
+      <rect
+        x={x + 5}
+        y={y - outerH / 2 + 5}
+        width={labelSectionW}
+        height={outerH - 10}
+        rx={6}
+        fill="none"
+        stroke={color}
+        strokeWidth={1}
         opacity={0.5}
       />
+      <text
+        x={x + 5 + labelSectionW / 2}
+        y={y + 5}
+        textAnchor="middle"
+        fill={color}
+        fontSize={13}
+        fontFamily="ui-monospace, 'SF Mono', monospace"
+        fontWeight={600}
+        letterSpacing="1.5"
+        opacity={0.9}
+      >
+        SLIDER
+      </text>
 
       {/* Track line */}
       <line
-        x1={x} y1={trackY}
-        x2={x + w} y2={trackY}
-        stroke={color} strokeWidth={1} opacity={0.35}
+        x1={x + trackPadL} y1={y}
+        x2={x + trackPadL + trackW} y2={y}
+        stroke={color} strokeWidth={1} opacity={0.3}
         strokeLinecap="round"
       />
 
       {/* Tick marks */}
       {Array.from({ length: tickCount }, (_, i) => {
-        const tx = x + (i / (tickCount - 1)) * w;
+        const tx = x + trackPadL + i * tickSpacing;
         return (
           <line
             key={`tick${i}`}
-            x1={tx} y1={trackY - 4}
-            x2={tx} y2={trackY + 4}
-            stroke={color} strokeWidth={0.8} opacity={0.3}
+            x1={tx} y1={y - 5}
+            x2={tx} y2={y + 5}
+            stroke={color} strokeWidth={0.7} opacity={0.25}
           />
         );
       })}
 
-      {/* Active fill portion — stroke line */}
+      {/* Active portion */}
       <line
-        x1={x} y1={trackY}
-        x2={handleX} y2={trackY}
-        stroke={color} strokeWidth={1.8} opacity={0.7}
+        x1={x + trackPadL} y1={y}
+        x2={handleX} y2={y}
+        stroke={color} strokeWidth={2} opacity={0.6}
         strokeLinecap="round"
       />
 
-      {/* Handle — diamond shape, stroke only */}
-      <g transform={`translate(${handleX}, ${trackY})`}>
+      {/* Diamond handle */}
+      <g transform={`translate(${handleX}, ${y})`}>
         <polygon
-          points="0,-7 7,0 0,7 -7,0"
+          points="0,-9 9,0 0,9 -9,0"
           fill="none"
           stroke={color}
-          strokeWidth={1.5}
+          strokeWidth={1.8}
           strokeLinejoin="round"
         />
-        {/* Small inner dot */}
-        <circle cx={0} cy={0} r={1.5} fill={color} opacity={0.6} />
+        <circle cx={0} cy={0} r={2} fill={color} opacity={0.5} />
       </g>
 
-      {/* Label pill — stroke only, at left */}
-      <rect
-        x={x - labelW - 16}
-        y={trackY - labelH / 2}
-        width={labelW}
-        height={labelH}
-        rx={4}
-        fill="none"
-        stroke={color}
-        strokeWidth={1}
-        opacity={0.6}
-      />
+      {/* Value — positioned right of diamond, clamped inside pill */}
       <text
-        x={x - labelW / 2 - 16}
-        y={trackY + 4}
-        textAnchor="middle"
+        x={Math.min(handleX + 16, x + totalW - trackPadR - 4)}
+        y={y + 5}
+        textAnchor="start"
         fill={color}
-        fontSize={11}
+        fontSize={15}
         fontFamily="ui-monospace, 'SF Mono', monospace"
-        fontWeight={500}
-        opacity={0.8}
-      >
-        Slider
-      </text>
-
-      {/* Value display — next to handle */}
-      <text
-        x={handleX + 14}
-        y={trackY + 4}
-        fill={color}
-        fontSize={13}
-        fontFamily="ui-monospace, 'SF Mono', monospace"
-        fontWeight={600}
-        opacity={0.9}
+        fontWeight={700}
+        opacity={0.95}
       >
         {Math.round(value)}
       </text>
