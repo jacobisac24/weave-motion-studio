@@ -7,11 +7,16 @@ export interface TangentBoxesConfig {
   curveColor: string;
   boxColor: string;
   indicatorColor: string;
+  pointColor: string;
+  sliderColor: string;
   boxSize: number;
   pointCount: number;
+  pointRadius: number;
   strokeWeight: number;
   phases: {
     curveDraw: number;
+    sliderAppear: number;
+    handAppear: number;
     pointsGrow: number;
     boxesFly: number;
     boxesRotate: number;
@@ -23,14 +28,19 @@ export const defaultTangentBoxesConfig: TangentBoxesConfig = {
   curveColor: "220 14% 70%",
   boxColor: "200 90% 65%",
   indicatorColor: "0 0% 96%",
+  pointColor: "200 90% 65%",
+  sliderColor: "220 14% 55%",
   boxSize: 28,
   pointCount: 9,
+  pointRadius: 4.5,
   strokeWeight: 2,
   phases: {
-    curveDraw: 0.18,
-    pointsGrow: 0.18,
-    boxesFly: 0.30,
-    boxesRotate: 0.24,
+    curveDraw: 0.12,
+    sliderAppear: 0.06,
+    handAppear: 0.04,
+    pointsGrow: 0.22,
+    boxesFly: 0.24,
+    boxesRotate: 0.22,
     settle: 0.10,
   },
 };
@@ -40,7 +50,7 @@ const descriptor: BlockDescriptor = {
   label: "Tangent Boxes",
   defaultDuration: 7,
   description:
-    "A curve appears, points distribute along it, then a corner box clones itself to each point and rotates to match the local tangent.",
+    "A curve appears, a slider controls point distribution, then boxes fly to each point and rotate to match the local tangent.",
 };
 
 blockRegistry.register(descriptor);
