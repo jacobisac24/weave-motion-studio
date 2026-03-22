@@ -8,7 +8,6 @@ export interface AngleMeasureConfig {
   vectorColorB: string;
   arcColorInterior: string;
   arcColorReflex: string;
-  bgDotColor: string;
   strokeWeight: number;
   vectorLength: number;
   phases: {
@@ -19,18 +18,15 @@ export interface AngleMeasureConfig {
     reflexArc: number;
     settle: number;
   };
-  /** Angle of vector A in degrees (from positive x-axis) */
   angleA: number;
-  /** Angle of vector B in degrees */
   angleB: number;
 }
 
 export const defaultAngleMeasureConfig: AngleMeasureConfig = {
-  vectorColorA: "200 90% 65%",
-  vectorColorB: "340 85% 65%",
-  arcColorInterior: "160 70% 55%",
-  arcColorReflex: "45 90% 60%",
-  bgDotColor: "220 14% 25%",
+  vectorColorA: "210 95% 60%",
+  vectorColorB: "350 80% 62%",
+  arcColorInterior: "150 65% 50%",
+  arcColorReflex: "38 85% 58%",
   strokeWeight: 2.5,
   vectorLength: 0.32,
   phases: {
