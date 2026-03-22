@@ -8,6 +8,7 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import "@/blocks/triangle-slider";
 import "@/blocks/curve-vector";
 import "@/blocks/tangent-boxes";
+import "@/blocks/angle-measure";
 
 interface PreviewProps {
   playback: {

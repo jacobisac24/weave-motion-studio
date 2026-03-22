@@ -34,7 +34,10 @@ import { CurveVectorRenderer } from "./curve-vector/CurveVectorRenderer";
 import { CURVE_VECTOR_TYPE } from "./curve-vector/config";
 import { TangentBoxesRenderer } from "./tangent-boxes/TangentBoxesRenderer";
 import { TANGENT_BOXES_TYPE } from "./tangent-boxes/config";
+import { AngleMeasureRenderer } from "./angle-measure/AngleMeasureRenderer";
+import { ANGLE_MEASURE_TYPE } from "./angle-measure/config";
 
 registerBlockRenderer(TRIANGLE_SLIDER_TYPE, TriangleSliderRenderer as RendererEntry);
 registerBlockRenderer(CURVE_VECTOR_TYPE, CurveVectorRenderer as RendererEntry);
 registerBlockRenderer(TANGENT_BOXES_TYPE, TangentBoxesRenderer as RendererEntry);
+registerBlockRenderer(ANGLE_MEASURE_TYPE, AngleMeasureRenderer as RendererEntry);
