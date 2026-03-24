@@ -9,6 +9,7 @@ import "@/blocks/triangle-slider";
 import "@/blocks/curve-vector";
 import "@/blocks/tangent-boxes";
 import "@/blocks/angle-measure";
+import "@/blocks/dot-product";
 
 interface PreviewProps {
   playback: {
