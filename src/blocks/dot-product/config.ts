@@ -8,10 +8,8 @@ export interface DotProductConfig {
   vectorColorB: string;
   projectionColor: string;
   negativeColor: string;
-  lightColor: string;
   strokeWeight: number;
   vectorLength: number;
-  /** Initial angle of Vector B in degrees (A is always 0°) */
   initialAngleB: number;
   phases: {
     vectorsAppear: number;
@@ -25,13 +23,12 @@ export interface DotProductConfig {
 }
 
 export const defaultDotProductConfig: DotProductConfig = {
-  vectorColorA: "200 90% 60%",
-  vectorColorB: "280 70% 65%",
-  projectionColor: "45 95% 58%",
+  vectorColorA: "25 95% 55%",       // Bybit orange
+  vectorColorB: "170 65% 50%",      // Teal/cyan
+  projectionColor: "25 95% 55%",    // Orange glow for projection
   negativeColor: "0 75% 55%",
-  lightColor: "45 90% 70%",
   strokeWeight: 2.5,
-  vectorLength: 0.28,
+  vectorLength: 0.32,
   initialAngleB: 45,
   phases: {
     vectorsAppear: 0.083,
