@@ -10,7 +10,6 @@ interface Props {
 }
 
 function clamp01(t: number) { return Math.max(0, Math.min(1, t)); }
-// Slow-fast-slow easing (ease-in-out cubic)
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
@@ -32,11 +31,12 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
   const p = clamp01(progress);
 
   const cx = width / 2;
-  const cy = height / 2;
+  // Move join point to lower half for better space usage
+  const cy = height * 0.55;
   const vecLen = Math.min(width, height) * cfg.vectorLength;
   const arrowSize = 7;
 
-  // Phase progress with slow-fast-slow easing
+  // Phase progress
   const appearP = easeOut(clamp01(p / ph[0]));
   const moveP = easeInOutCubic(clamp01((p - ph[0]) / (ph[1] - ph[0])));
   const projP = easeInOutCubic(clamp01((p - ph[1]) / (ph[2] - ph[1])));
@@ -45,54 +45,76 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
   const oppP = easeInOutCubic(clamp01((p - ph[4]) / (ph[5] - ph[4])));
   const sumP = clamp01((p - ph[5]) / (ph[6] - ph[5]));
 
-  const initB = cfg.initialAngleB;
-  let angleBDeg = initB;
-
   const inScene = (i: number) => p >= (i > 0 ? ph[i - 1] : 0) && p < ph[i];
   const pastScene = (i: number) => p >= ph[i];
 
+  // Vector A starts inclined down by ~15 degrees
+  const initialAngleA = -15;
+  // After join (moveP complete), rotate both so A aligns to x-axis
+  // This rotation applies to the whole system
+  const systemRotation = pastScene(1) ? lerp(initialAngleA, 0, easeInOutCubic(clamp01((moveP - 0.95) / 0.05) + (pastScene(1) ? projP * 0.3 : 0))) : initialAngleA;
+  // Actually: during moveToCenter, rotate system. After move complete, A should be at 0.
+  // Let's make the system rotation happen during the move phase
+  const systemAngleDeg = lerp(initialAngleA, 0, moveP);
+  const systemAngleRad = degToRad(systemAngleDeg);
+
+  // Vector B angle relative to system
+  const initB = cfg.initialAngleB;
+  let angleBRelDeg = initB; // relative to A
+
   if (inScene(3)) {
-    angleBDeg = lerp(initB, 0, alignP);
+    angleBRelDeg = lerp(initB, 0, alignP);
   } else if (pastScene(3) && !pastScene(4)) {
-    angleBDeg = lerp(0, 90, perpP);
+    angleBRelDeg = lerp(0, 90, perpP);
   } else if (pastScene(4) && !pastScene(5)) {
-    angleBDeg = lerp(90, 150, oppP);
+    angleBRelDeg = lerp(90, 150, oppP);
   } else if (pastScene(5)) {
     const sweepT = (Math.sin(sumP * Math.PI * 4 - Math.PI / 2) + 1) / 2;
-    angleBDeg = sweepT * 180;
+    angleBRelDeg = sweepT * 180;
   } else if (pastScene(3)) {
-    angleBDeg = 0;
+    angleBRelDeg = 0;
   }
 
-  const angleBRad = degToRad(angleBDeg);
+  // Absolute angles
+  const angleADeg = systemAngleDeg;
+  const angleARad = degToRad(angleADeg);
+  const angleBAbsDeg = systemAngleDeg + angleBRelDeg;
+  const angleBAbsRad = degToRad(angleBAbsDeg);
 
   // Start positions (well separated)
   const offsetDist = width * 0.18;
-  const startA = { x: cx - offsetDist, y: cy + height * 0.06 };
-  const startB = { x: cx + offsetDist, y: cy - height * 0.06 };
+  const startA = { x: cx - offsetDist, y: cy + height * 0.04 };
+  const startB = { x: cx + offsetDist * 0.6, y: cy - height * 0.12 };
 
   const originA = { x: lerp(startA.x, cx, moveP), y: lerp(startA.y, cy, moveP) };
   const originB = { x: lerp(startB.x, cx, moveP), y: lerp(startB.y, cy, moveP) };
 
+  // Vector A end (inclined, then straightens)
   const endA = {
-    x: originA.x + vecLen * appearP,
-    y: originA.y,
+    x: originA.x + vecLen * appearP * Math.cos(angleARad),
+    y: originA.y - vecLen * appearP * Math.sin(angleARad),
   };
-  const fullEndA = { x: originA.x + vecLen, y: originA.y };
+  const fullEndA = {
+    x: originA.x + vecLen * Math.cos(angleARad),
+    y: originA.y - vecLen * Math.sin(angleARad),
+  };
 
+  // Vector B
   const bOrigin = pastScene(1) ? { x: cx, y: cy } : originB;
   const endB = {
-    x: bOrigin.x + vecLen * appearP * Math.cos(angleBRad),
-    y: bOrigin.y - vecLen * appearP * Math.sin(angleBRad),
+    x: bOrigin.x + vecLen * appearP * Math.cos(angleBAbsRad),
+    y: bOrigin.y - vecLen * appearP * Math.sin(angleBAbsRad),
   };
   const fullEndB = {
-    x: bOrigin.x + vecLen * Math.cos(angleBRad),
-    y: bOrigin.y - vecLen * Math.sin(angleBRad),
+    x: bOrigin.x + vecLen * Math.cos(angleBAbsRad),
+    y: bOrigin.y - vecLen * Math.sin(angleBAbsRad),
   };
 
-  // Projection
+  // After system is aligned (pastScene(1)), A points along x-axis
+  // Projection math uses relative angle
+  const angleBRelRad = degToRad(angleBRelDeg);
   const showProjection = pastScene(1) && projP > 0;
-  const projLen = vecLen * Math.cos(angleBRad);
+  const projLen = vecLen * Math.cos(angleBRelRad);
   const projIsNegative = projLen < 0;
 
   const colA = `hsl(${cfg.vectorColorA})`;
@@ -100,32 +122,40 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
   const projCol = projIsNegative ? `hsl(${cfg.negativeColor})` : `hsl(${cfg.projectionColor})`;
   const gridCol = "hsl(220 14% 22%)";
 
-  // Sun animation: appears at start of projection phase, fades after shadow drops
-  const sunP = clamp01(projP / 0.3); // sun appears in first 30% of projection
-  const sunFadeP = clamp01((projP - 0.5) / 0.2); // sun fades after 50%
+  // Sun: appears and shadow drops simultaneously
+  const sunP = clamp01(projP / 0.3);
+  const sunFadeP = clamp01((projP - 0.5) / 0.2);
   const sunOpacity = sunP * (1 - sunFadeP);
 
-  // Shadow drops from top to bottom (animated vertically)
-  const shadowDropP = easeInOutCubic(clamp01((projP - 0.15) / 0.5));
+  // Shadow drops from top simultaneously with sun
+  const shadowDropP = easeInOutCubic(clamp01(projP / 0.5));
 
-  // Projection line along A (animated after shadow drops)
-  const projLineP = easeInOutCubic(clamp01((projP - 0.4) / 0.5));
+  // Projection line along A (after shadow drops)
+  const projLineP = easeInOutCubic(clamp01((projP - 0.3) / 0.5));
   const projAnimLen = projLen * projLineP;
 
-  const bTipX = fullEndB.x;
-  const bTipY = fullEndB.y;
+  // B tip position (after system aligned, use cx/cy as origin)
+  const bTipX = pastScene(1) ? cx + vecLen * Math.cos(angleBRelRad) : fullEndB.x;
+  const bTipY = pastScene(1) ? cy - vecLen * Math.sin(angleBRelRad) : fullEndB.y;
+  // Projection end on A axis (horizontal after alignment)
   const projEndX = cx + projAnimLen;
 
-  // Dotted lines drop from B tip down to A axis
+  // Dotted lines drop from B tip down to A axis (cy)
   const dropLineEndY = lerp(bTipY, cy, shadowDropP);
 
-  // Area fill shadow path
-  const showShadowFill = showProjection && projLineP > 0.05;
+  // Shadow fill - gradient goes top to bottom (from B tip down to axis)
+  const showShadowFill = showProjection && shadowDropP > 0.05;
+
+  // Shadow path: triangle from origin to B tip to projection point
   const shadowPath = showShadowFill
-    ? `M${cx},${cy} L${bTipX},${bTipY} L${projEndX},${cy} Z`
+    ? `M${cx},${cy} L${bTipX},${lerp(cy, bTipY, shadowDropP)} L${cx + projLen * shadowDropP},${cy} Z`
     : "";
 
-  // Projection length text
+  // Dimension-style length marker
+  const showDimension = showProjection && projLineP > 0.1 && Math.abs(projAnimLen) > 10;
+  const dimY = cy + 28; // below the axis
+  const dimStartX = cx;
+  const dimEndX = projEndX;
   const projLenDisplay = Math.abs(projAnimLen).toFixed(0);
 
   // Text overlays
@@ -159,12 +189,12 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
     overlayColor = colA;
   }
 
-  // Summary counter with Zero state
+  // Summary counter
   const showCounter = pastScene(5);
   let counterText = "";
   let counterColor = "hsl(220 14% 70%)";
   if (showCounter) {
-    const val = Math.cos(degToRad(angleBDeg));
+    const val = Math.cos(degToRad(angleBRelDeg));
     if (Math.abs(val) < 0.05) {
       counterText = "Zero";
       counterColor = "hsl(220 14% 85%)";
@@ -177,7 +207,7 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
     }
   }
 
-  // Join bubble: only after vectors have fully met (moveP complete)
+  // Join bubble: only after vectors have fully met
   const showJoinBubble = moveP >= 0.95 && p < ph[2];
   const bubbleOpacity = showJoinBubble ? clamp01((moveP - 0.95) / 0.05) : 0;
 
@@ -193,20 +223,8 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
       style={{ overflow: "hidden", background: "hsl(220 20% 7%)" }}
     >
       <defs>
-        <filter id="dp-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="6" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-        <filter id="dp-soft" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-        <filter id="dp-sun-glow" x="-100%" y="-100%" width="300%" height="300%">
-          <feGaussianBlur stdDeviation="12" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
         <linearGradient id="dp-shadow-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={projCol} stopOpacity="0.3" />
+          <stop offset="0%" stopColor={projCol} stopOpacity="0.35" />
           <stop offset="100%" stopColor={projCol} stopOpacity="0.03" />
         </linearGradient>
         <radialGradient id="dp-sun-radial" cx="50%" cy="50%" r="50%">
@@ -235,9 +253,9 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
         </g>
       )}
 
-      {/* Origin dot after merge (no bubble, just dot) */}
-      {moveP >= 0.95 && !showJoinBubble && pastScene(1) && (
-        <g opacity={0.7} filter="url(#dp-soft)">
+      {/* Origin dot after merge */}
+      {pastScene(1) && !showJoinBubble && (
+        <g opacity={0.7}>
           <circle cx={cx} cy={cy} r={3.5} fill="hsl(220 14% 45%)" />
         </g>
       )}
@@ -252,11 +270,10 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
         />
       )}
 
-      {/* Sun icon - appears during projection phase then fades */}
+      {/* Sun icon - appears during projection, shadow drops at same time */}
       {showProjection && sunOpacity > 0.01 && (
-        <g opacity={sunOpacity} filter="url(#dp-sun-glow)">
+        <g opacity={sunOpacity}>
           <circle cx={sunX} cy={sunY} r={16} fill="url(#dp-sun-radial)" />
-          {/* Sun rays */}
           {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => {
             const rad = degToRad(angle);
             const r1 = 20;
@@ -274,7 +291,7 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
         </g>
       )}
 
-      {/* Dotted lines dropping from B tip to A axis (animated top to bottom) */}
+      {/* Dotted lines dropping from B tip to A axis */}
       {showProjection && shadowDropP > 0 && (
         <g opacity={clamp01(shadowDropP / 0.3) * 0.6}>
           <line
@@ -283,7 +300,6 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
             stroke={projCol} strokeWidth={1} strokeDasharray="3 4"
             strokeLinecap="round"
           />
-          {/* Right angle indicator when fully dropped */}
           {shadowDropP > 0.9 && (
             <g opacity={clamp01((shadowDropP - 0.9) / 0.1)}>
               <polyline
@@ -295,17 +311,10 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
         </g>
       )}
 
-      {/* Area fill shadow */}
+      {/* Shadow fill - animates top to bottom */}
       {shadowPath && (
-        <g opacity={clamp01(projLineP / 0.3) * 0.7}>
+        <g opacity={clamp01(shadowDropP / 0.3) * 0.7}>
           <path d={shadowPath} fill="url(#dp-shadow-grad)" />
-          {/* Top edge glow */}
-          <line
-            x1={bTipX} y1={bTipY}
-            x2={projEndX} y2={cy}
-            stroke={projCol} strokeWidth={1} opacity={0.35}
-            strokeLinecap="round"
-          />
         </g>
       )}
 
@@ -316,22 +325,38 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
             x1={cx} y1={cy}
             x2={projEndX} y2={cy}
             stroke={projCol} strokeWidth={3} strokeLinecap="round"
-            filter="url(#dp-glow)" opacity={0.8}
+            opacity={0.8}
           />
           <circle cx={projEndX} cy={cy} r={3} fill={projCol} opacity={0.7} />
         </g>
       )}
 
-      {/* Projection length label */}
-      {showProjection && projLineP > 0.5 && Math.abs(projAnimLen) > 15 && (
-        <g opacity={clamp01((projLineP - 0.5) / 0.3)}>
+      {/* Dimension-style length marker */}
+      {showDimension && (
+        <g opacity={clamp01((projLineP - 0.1) / 0.3)}>
+          {/* Vertical ticks at start and end */}
+          <line x1={dimStartX} y1={cy + 8} x2={dimStartX} y2={dimY + 8} stroke={projCol} strokeWidth={0.8} opacity={0.5} />
+          <line x1={dimEndX} y1={cy + 8} x2={dimEndX} y2={dimY + 8} stroke={projCol} strokeWidth={0.8} opacity={0.5} />
+          {/* Horizontal dimension line with arrows */}
+          <line x1={dimStartX + 4} y1={dimY} x2={dimEndX - 4} y2={dimY} stroke={projCol} strokeWidth={0.8} opacity={0.6} />
+          {/* Left arrow */}
+          <polygon
+            points={`${dimStartX},${dimY} ${dimStartX + 6},${dimY - 3} ${dimStartX + 6},${dimY + 3}`}
+            fill={projCol} opacity={0.6}
+          />
+          {/* Right arrow */}
+          <polygon
+            points={`${dimEndX},${dimY} ${dimEndX - 6},${dimY - 3} ${dimEndX - 6},${dimY + 3}`}
+            fill={projCol} opacity={0.6}
+          />
+          {/* Length label */}
           <rect
-            x={cx + projAnimLen / 2 - 30} y={cy + 14}
-            width={60} height={20} rx={10}
-            fill="hsl(220 20% 10%)" stroke={projCol} strokeWidth={1} opacity={0.9}
+            x={(dimStartX + dimEndX) / 2 - 22} y={dimY + 4}
+            width={44} height={18} rx={9}
+            fill="hsl(220 20% 10%)" stroke={projCol} strokeWidth={0.8} opacity={0.9}
           />
           <text
-            x={cx + projAnimLen / 2} y={cy + 28}
+            x={(dimStartX + dimEndX) / 2} y={dimY + 17}
             textAnchor="middle" fill={projCol} fontSize={10}
             fontFamily="ui-monospace, 'SF Mono', monospace" fontWeight={600}
           >
@@ -340,76 +365,56 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
         </g>
       )}
 
-      {/* Vector A - SOLID visible */}
+      {/* Vector A - solid, no glow */}
       {appearP > 0 && (
-        <g opacity={1}>
-          {/* Glow layer */}
-          <line
-            x1={originA.x} y1={originA.y}
-            x2={endA.x} y2={endA.y}
-            stroke={colA} strokeWidth={cfg.strokeWeight + 4} strokeLinecap="round"
-            filter="url(#dp-glow)" opacity={0.3 * appearP}
-          />
-          {/* Main line */}
+        <g>
           <line
             x1={originA.x} y1={originA.y}
             x2={endA.x} y2={endA.y}
             stroke={colA} strokeWidth={cfg.strokeWeight} strokeLinecap="round"
             opacity={appearP}
           />
-          {/* Arrowhead - only when vector fully drawn */}
           {appearP >= 0.99 && (
             <polygon
               points={`0,0 ${-arrowSize * 2.2},${-arrowSize} ${-arrowSize * 2.2},${arrowSize}`}
               fill={colA}
-              transform={`translate(${fullEndA.x},${fullEndA.y}) rotate(0)`}
+              transform={`translate(${fullEndA.x},${fullEndA.y}) rotate(${-angleADeg})`}
             />
           )}
-          {/* Origin dot */}
           <circle cx={originA.x} cy={originA.y} r={4} fill={colA} opacity={0.9} />
-          {/* Label */}
           <text
-            x={fullEndA.x + 16} y={fullEndA.y - 12}
+            x={fullEndA.x + 14 * Math.cos(angleARad)}
+            y={fullEndA.y - 14 * Math.sin(angleARad) - 6}
             fill={colA} fontSize={13}
             fontFamily="ui-monospace, 'SF Mono', monospace"
             fontWeight={700} opacity={appearP > 0.9 ? 0.9 : 0}
+            textAnchor="middle"
           >
             A
           </text>
         </g>
       )}
 
-      {/* Vector B - SOLID visible */}
+      {/* Vector B - solid, no glow */}
       {appearP > 0 && (
-        <g opacity={1}>
-          {/* Glow layer */}
-          <line
-            x1={bOrigin.x} y1={bOrigin.y}
-            x2={endB.x} y2={endB.y}
-            stroke={colB} strokeWidth={cfg.strokeWeight + 4} strokeLinecap="round"
-            filter="url(#dp-glow)" opacity={0.3 * appearP}
-          />
-          {/* Main line */}
+        <g>
           <line
             x1={bOrigin.x} y1={bOrigin.y}
             x2={endB.x} y2={endB.y}
             stroke={colB} strokeWidth={cfg.strokeWeight} strokeLinecap="round"
             opacity={appearP}
           />
-          {/* Arrowhead - only when vector fully drawn */}
           {appearP >= 0.99 && (
             <polygon
               points={`0,0 ${-arrowSize * 2.2},${-arrowSize} ${-arrowSize * 2.2},${arrowSize}`}
               fill={colB}
-              transform={`translate(${fullEndB.x},${fullEndB.y}) rotate(${-angleBDeg})`}
+              transform={`translate(${fullEndB.x},${fullEndB.y}) rotate(${-angleBAbsDeg})`}
             />
           )}
-          {/* Origin dot */}
           <circle cx={bOrigin.x} cy={bOrigin.y} r={4} fill={colB} opacity={0.9} />
-          {/* Label */}
           <text
-            x={fullEndB.x + 12 * Math.cos(angleBRad)}
-            y={fullEndB.y - 12 * Math.sin(angleBRad) - 6}
+            x={fullEndB.x + 12 * Math.cos(angleBAbsRad)}
+            y={fullEndB.y - 12 * Math.sin(angleBAbsRad) - 6}
             fill={colB} fontSize={13}
             fontFamily="ui-monospace, 'SF Mono', monospace"
             fontWeight={700} opacity={appearP > 0.9 ? 0.9 : 0}
@@ -424,7 +429,7 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
       {overlayOpacity > 0 && (
         <g opacity={overlayOpacity}>
           <text
-            x={cx} y={height - 60}
+            x={cx} y={height - 50}
             textAnchor="middle" fill={overlayColor}
             fontSize={16} fontFamily="ui-monospace, 'SF Mono', monospace"
             fontWeight={700} letterSpacing="0.03em"
@@ -433,7 +438,7 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
           </text>
           {overlaySubText && (
             <text
-              x={cx} y={height - 40}
+              x={cx} y={height - 30}
               textAnchor="middle" fill={overlayColor}
               fontSize={12} fontFamily="ui-monospace, 'SF Mono', monospace"
               fontWeight={500} opacity={0.7}
@@ -444,16 +449,16 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
         </g>
       )}
 
-      {/* Summary counter with Positive / Zero / Negative */}
+      {/* Summary counter */}
       {showCounter && (
         <g opacity={clamp01(sumP / 0.15)}>
           <rect
-            x={cx - 46} y={height - 100}
+            x={cx - 46} y={height - 90}
             width={92} height={26} rx={13}
             fill="hsl(220 20% 10%)" stroke={counterColor} strokeWidth={1.5} opacity={0.9}
           />
           <text
-            x={cx} y={height - 83}
+            x={cx} y={height - 73}
             textAnchor="middle" fill={counterColor}
             fontSize={12} fontFamily="ui-monospace, 'SF Mono', monospace" fontWeight={700}
           >
@@ -462,7 +467,7 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
         </g>
       )}
 
-      {/* Shared origin label - only briefly after join */}
+      {/* Shared origin label */}
       {showJoinBubble && (
         <text
           x={cx} y={cy + 24}
