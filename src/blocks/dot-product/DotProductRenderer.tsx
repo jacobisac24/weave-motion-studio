@@ -50,12 +50,9 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
 
   // Vector A starts inclined down by ~15 degrees
   const initialAngleA = -15;
-  // After join (moveP complete), rotate both so A aligns to x-axis
-  // This rotation applies to the whole system
-  const systemRotation = pastScene(1) ? lerp(initialAngleA, 0, easeInOutCubic(clamp01((moveP - 0.95) / 0.05) + (pastScene(1) ? projP * 0.3 : 0))) : initialAngleA;
-  // Actually: during moveToCenter, rotate system. After move complete, A should be at 0.
-  // Let's make the system rotation happen during the move phase
-  const systemAngleDeg = lerp(initialAngleA, 0, moveP);
+  // Don't rotate during move — only rotate AFTER join, using early projection phase
+  const rotateP = pastScene(1) ? easeInOutCubic(clamp01(projP / 0.4)) : 0;
+  const systemAngleDeg = lerp(initialAngleA, 0, rotateP);
   const systemAngleRad = degToRad(systemAngleDeg);
 
   // Vector B angle relative to system
@@ -143,12 +140,15 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
   // Dotted lines drop from B tip down to A axis (cy)
   const dropLineEndY = lerp(bTipY, cy, shadowDropP);
 
-  // Shadow fill - gradient goes top to bottom (from B tip down to axis)
-  const showShadowFill = showProjection && shadowDropP > 0.05;
+  // Shadow fill - fills along A axis (left to right) matching projection line
+  const showShadowFill = showProjection && projLineP > 0.05;
 
-  // Shadow path: triangle from origin to B tip to projection point
+  // Shadow path: triangle from origin to partial B tip to projection end
+  const fillFrac = projLineP;
+  const partialBTipX = cx + (bTipX - cx) * fillFrac;
+  const partialBTipY = cy + (bTipY - cy) * fillFrac;
   const shadowPath = showShadowFill
-    ? `M${cx},${cy} L${bTipX},${lerp(cy, bTipY, shadowDropP)} L${cx + projLen * shadowDropP},${cy} Z`
+    ? `M${cx},${cy} L${partialBTipX},${partialBTipY} L${cx + projLen * fillFrac},${cy} Z`
     : "";
 
   // Dimension-style length marker
