@@ -50,12 +50,9 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
 
   // Vector A starts inclined down by ~15 degrees
   const initialAngleA = -15;
-  // After join (moveP complete), rotate both so A aligns to x-axis
-  // This rotation applies to the whole system
-  const systemRotation = pastScene(1) ? lerp(initialAngleA, 0, easeInOutCubic(clamp01((moveP - 0.95) / 0.05) + (pastScene(1) ? projP * 0.3 : 0))) : initialAngleA;
-  // Actually: during moveToCenter, rotate system. After move complete, A should be at 0.
-  // Let's make the system rotation happen during the move phase
-  const systemAngleDeg = lerp(initialAngleA, 0, moveP);
+  // Don't rotate during move — only rotate AFTER join, using early projection phase
+  const rotateP = pastScene(1) ? easeInOutCubic(clamp01(projP / 0.4)) : 0;
+  const systemAngleDeg = lerp(initialAngleA, 0, rotateP);
   const systemAngleRad = degToRad(systemAngleDeg);
 
   // Vector B angle relative to system
