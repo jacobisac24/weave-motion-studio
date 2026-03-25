@@ -140,12 +140,15 @@ export function DotProductRenderer({ progress, width, height, config: overrides 
   // Dotted lines drop from B tip down to A axis (cy)
   const dropLineEndY = lerp(bTipY, cy, shadowDropP);
 
-  // Shadow fill - gradient goes top to bottom (from B tip down to axis)
-  const showShadowFill = showProjection && shadowDropP > 0.05;
+  // Shadow fill - fills along A axis (left to right) matching projection line
+  const showShadowFill = showProjection && projLineP > 0.05;
 
-  // Shadow path: triangle from origin to B tip to projection point
+  // Shadow path: triangle from origin to partial B tip to projection end
+  const fillFrac = projLineP;
+  const partialBTipX = cx + (bTipX - cx) * fillFrac;
+  const partialBTipY = cy + (bTipY - cy) * fillFrac;
   const shadowPath = showShadowFill
-    ? `M${cx},${cy} L${bTipX},${lerp(cy, bTipY, shadowDropP)} L${cx + projLen * shadowDropP},${cy} Z`
+    ? `M${cx},${cy} L${partialBTipX},${partialBTipY} L${cx + projLen * fillFrac},${cy} Z`
     : "";
 
   // Dimension-style length marker
