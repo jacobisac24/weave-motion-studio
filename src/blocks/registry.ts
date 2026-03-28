@@ -38,9 +38,12 @@ import { AngleMeasureRenderer } from "./angle-measure/AngleMeasureRenderer";
 import { ANGLE_MEASURE_TYPE } from "./angle-measure/config";
 import { DotProductRenderer } from "./dot-product/DotProductRenderer";
 import { DOT_PRODUCT_TYPE } from "./dot-product/config";
+import { HeatMapRenderer } from "./heat-map/HeatMapRenderer";
+import { HEAT_MAP_TYPE } from "./heat-map/config";
 
 registerBlockRenderer(TRIANGLE_SLIDER_TYPE, TriangleSliderRenderer as RendererEntry);
 registerBlockRenderer(CURVE_VECTOR_TYPE, CurveVectorRenderer as RendererEntry);
 registerBlockRenderer(TANGENT_BOXES_TYPE, TangentBoxesRenderer as RendererEntry);
 registerBlockRenderer(ANGLE_MEASURE_TYPE, AngleMeasureRenderer as RendererEntry);
 registerBlockRenderer(DOT_PRODUCT_TYPE, DotProductRenderer as RendererEntry);
+registerBlockRenderer(HEAT_MAP_TYPE, HeatMapRenderer as RendererEntry);
