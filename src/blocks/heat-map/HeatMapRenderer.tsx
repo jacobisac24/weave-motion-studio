@@ -1,10 +1,14 @@
 import type { BlockRendererProps } from "@/blocks/registry";
+import humanImg from "@/assets/human-topdown.png";
 
 /* ------------------------------------------------------------------ */
-/*  Easing helpers                                                     */
+/*  Math helpers                                                       */
 /* ------------------------------------------------------------------ */
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+function easeOutQuart(t: number) {
+  return 1 - Math.pow(1 - t, 4);
 }
 function clamp01(t: number) {
   return Math.max(0, Math.min(1, t));
@@ -14,33 +18,36 @@ function lerp(a: number, b: number, t: number) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Color helpers — heat-map palette (red→yellow→blue)                */
+/*  Heat palette — smooth HSL based                                    */
 /* ------------------------------------------------------------------ */
 function heatColor(d: number): string {
-  // d 0 = closest (red), 1 = farthest (blue)
+  // d: 0=closest (warm orange-red), 1=farthest (cool teal-blue)
   const t = clamp01(d);
-  if (t < 0.5) {
-    const s = t / 0.5;
-    // red → yellow
-    const r = 255;
-    const g = Math.round(lerp(60, 220, s));
-    const b = Math.round(lerp(40, 50, s));
-    return `rgb(${r},${g},${b})`;
-  }
-  const s = (t - 0.5) / 0.5;
-  // yellow → blue
-  const r = Math.round(lerp(255, 60, s));
-  const g = Math.round(lerp(220, 130, s));
-  const b = Math.round(lerp(50, 230, s));
-  return `rgb(${r},${g},${b})`;
+  const h = lerp(10, 210, t);       // hue: warm red → cool blue
+  const s = lerp(95, 75, t);        // saturation
+  const l = lerp(55, 40, t);        // lightness
+  return `hsl(${h},${s}%,${l}%)`;
 }
 
 /* ------------------------------------------------------------------ */
-/*  Grid constants                                                     */
+/*  S-curve path for human movement                                    */
 /* ------------------------------------------------------------------ */
-const COLS = 10;
-const ROWS = 7;
-const GAP = 4; // px between panels
+function sCurvePoint(p: number, cx: number, cy: number, rangeX: number, rangeY: number) {
+  // p: 0→1, S-shape that covers most of the grid area
+  const t = clamp01(p);
+  // Horizontal: sweep left to right
+  const x = cx - rangeX * 0.4 + rangeX * 0.8 * t;
+  // Vertical: sine wave for S-shape (two full bends)
+  const y = cy + Math.sin(t * Math.PI * 2.5) * rangeY * 0.35;
+  return { x, y };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Grid config — dense square grid                                    */
+/* ------------------------------------------------------------------ */
+const COLS = 16;
+const ROWS = 16;
+const GAP = 1.5;
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
@@ -49,147 +56,185 @@ export function HeatMapRenderer({ progress, width, height }: BlockRendererProps)
   const vw = (p: number) => (p / 100) * width;
   const vh = (p: number) => (p / 100) * height;
 
-  /* ---- timeline phases ---- */
   const dur = 45;
-  const t = progress * dur; // seconds
+  const t = progress * dur;
 
-  // Scene 1  0-5   setup
-  // Scene 2  5-12  center dots
-  // Scene 3  12-22 measurement lines
-  // Scene 4  22-35 heat color fill
-  // Scene 5  35-45 dynamic movement
+  // Scene 1: 0-5    Setup — grid appears with stroke animation
+  // Scene 2: 5-12   Center dots + zoom
+  // Scene 3: 12-22  Measurement lines
+  // Scene 4: 22-35  Heat color fill
+  // Scene 5: 35-45  S-curve movement
 
-  /* ---- grid geometry ---- */
-  const gridW = vw(70);
-  const gridH = vh(75);
-  const gridX = vw(15);
-  const gridY = vh(15);
-  const cellW = (gridW - GAP * (COLS - 1)) / COLS;
-  const cellH = (gridH - GAP * (ROWS - 1)) / ROWS;
+  /* ---- Square grid geometry (centered, smaller coverage) ---- */
+  const gridSize = Math.min(vw(55), vh(55)); // square grid, 55% of smaller dim
+  const gridX = (width - gridSize) / 2;
+  const gridY = (height - gridSize) / 2 + vh(2); // slightly below center
+  const cellSize = (gridSize - GAP * (COLS - 1)) / COLS;
 
-  const cells: { cx: number; cy: number; x: number; y: number }[] = [];
+  const cells: { cx: number; cy: number; x: number; y: number; row: number; col: number }[] = [];
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      const x = gridX + c * (cellW + GAP);
-      const y = gridY + r * (cellH + GAP);
-      cells.push({ cx: x + cellW / 2, cy: y + cellH / 2, x, y });
+      const x = gridX + c * (cellSize + GAP);
+      const y = gridY + r * (cellSize + GAP);
+      cells.push({ cx: x + cellSize / 2, cy: y + cellSize / 2, x, y, row: r, col: c });
     }
   }
 
-  /* ---- human figure position ---- */
-  const humanRestX = vw(8);
-  const humanRestY = vh(55);
-  // Scene 5 movement path
-  const moveP = t >= 35 ? easeInOutCubic(clamp01((t - 35) / 9)) : 0;
-  const humanX = t < 35 ? humanRestX : lerp(humanRestX, vw(55), moveP);
-  const humanY = t < 35 ? humanRestY : lerp(humanRestY, vh(45), moveP);
-  const humanDotX = humanX;
-  const humanDotY = humanY + vh(3);
+  /* ---- Human figure position ---- */
+  const humanSize = vw(4);
+  const gridCenterX = gridX + gridSize / 2;
+  const gridCenterY = gridY + gridSize / 2;
 
-  /* ---- distances ---- */
-  const maxDist = Math.sqrt(gridW * gridW + gridH * gridH);
+  // Before scene 5: positioned to the left of grid
+  const humanRestX = gridX - vw(8);
+  const humanRestY = gridCenterY;
+
+  // Scene 5: S-curve movement
+  const moveP = t >= 35 ? easeInOutCubic(clamp01((t - 35) / 9.5)) : 0;
+  const sPoint = sCurvePoint(moveP, gridCenterX, gridCenterY, gridSize * 0.9, gridSize * 0.4);
+
+  const humanX = t < 35 ? humanRestX : sPoint.x;
+  const humanY = t < 35 ? humanRestY : sPoint.y;
+  const dotX = humanX;
+  const dotY = humanY;
+
+  /* ---- Distances ---- */
+  const maxDist = gridSize * 1.1;
   const distances = cells.map((c) => {
-    const dx = c.cx - humanDotX;
-    const dy = c.cy - humanDotY;
+    const dx = c.cx - dotX;
+    const dy = c.cy - dotY;
     return Math.sqrt(dx * dx + dy * dy) / maxDist;
   });
 
-  /* ---- scene progress values ---- */
-  const setupP = clamp01(t / 5);
-  const dotsP = clamp01((t - 5) / 3); // dots appear 5-8
+  /* ---- Scene progress ---- */
+  // Grid cells appear with staggered animation
+  const gridAppearP = easeOutQuart(clamp01(t / 4));
+
+  // Center dots
+  const dotsP = clamp01((t - 5) / 3);
+
+  // Subtle zoom
   const zoomP = t >= 5 ? easeInOutCubic(clamp01((t - 5) / 6)) : 0;
+
+  // Measurement lines
   const linesGrowP = t >= 12 ? easeInOutCubic(clamp01((t - 12) / 4)) : 0;
-  const linesShrinkP = t >= 22 ? easeInOutCubic(clamp01((t - 22) / 3)) : 0;
-  const showLines = t >= 12 && t < 25;
-  const heatP = t >= 25 ? easeInOutCubic(clamp01((t - 25) / 5)) : 0;
-  const scaleBarP = t >= 23 ? easeInOutCubic(clamp01((t - 23) / 2)) : 0;
-  const distTextP = t >= 22 && t < 28 ? easeInOutCubic(clamp01((t - 22) / 2)) : t >= 28 ? Math.max(0, 1 - easeInOutCubic(clamp01((t - 28) / 2))) : 0;
-
-  /* subtle zoom for scene 2-3 */
-  const scale = 1 + zoomP * 0.08;
-
-  /* ---- human figure (top-down stick figure) ---- */
-  const headR = vw(1.2);
-  const bodyLen = vh(4);
-  const humanOpacity = easeInOutCubic(clamp01(t / 2));
-
-  /* ---- line effective length ---- */
+  const linesShrinkP = t >= 20 ? easeInOutCubic(clamp01((t - 20) / 2)) : 0;
+  const showLines = t >= 12 && t < 22;
   const lineLen = showLines ? linesGrowP * (1 - linesShrinkP) : 0;
 
-  /* scene 3 dim */
-  const dimOverlay = showLines ? 0.3 * linesGrowP * (1 - linesShrinkP) : 0;
+  // Heat color wave
+  const heatP = t >= 23 ? easeInOutCubic(clamp01((t - 23) / 6)) : 0;
 
-  /* text overlays */
-  const centerTextOp = t >= 6 && t < 11 ? easeInOutCubic(clamp01((t - 6) / 1.5)) * (1 - clamp01((t - 10) / 1)) : 0;
-  const measureTextOp = t >= 14 && t < 21 ? easeInOutCubic(clamp01((t - 14) / 1.5)) * (1 - clamp01((t - 20) / 1)) : 0;
+  // Scale bar
+  const scaleBarP = t >= 24 ? easeInOutCubic(clamp01((t - 24) / 2)) : 0;
+
+  // Distance text on panels
+  const distTextP =
+    t >= 22 && t < 28
+      ? easeInOutCubic(clamp01((t - 22) / 2))
+      : t >= 28
+        ? Math.max(0, 1 - easeInOutCubic(clamp01((t - 28) / 2)))
+        : 0;
+
+  // Human figure opacity
+  const humanOpacity = easeInOutCubic(clamp01(t / 2));
+
+  // Dim overlay for measurement scene
+  const dimOverlay = showLines ? 0.25 * linesGrowP * (1 - linesShrinkP) : 0;
+
+  // Text overlays
+  const centerTextOp =
+    t >= 6 && t < 11
+      ? easeInOutCubic(clamp01((t - 6) / 1.5)) * (1 - clamp01((t - 10) / 1))
+      : 0;
+  const measureTextOp =
+    t >= 14 && t < 21
+      ? easeInOutCubic(clamp01((t - 14) / 1.5)) * (1 - clamp01((t - 20) / 1))
+      : 0;
+
+  const scale = 1 + zoomP * 0.06;
 
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
       width="100%"
       height="100%"
-      style={{ background: "#0a0a0f" }}
+      style={{ background: "#08080d" }}
     >
-      {/* Background grid (60px dashed) */}
       <defs>
-        <pattern id="hm-grid" width={60} height={60} patternUnits="userSpaceOnUse">
-          <path
-            d="M 60 0 L 0 0 0 60"
-            fill="none"
-            stroke="hsl(220,15%,25%)"
-            strokeWidth="0.5"
-            strokeDasharray="4 4"
-            opacity="0.06"
-          />
+        {/* Subtle dot grid background */}
+        <pattern id="hm-dot-grid" width={24} height={24} patternUnits="userSpaceOnUse">
+          <circle cx={12} cy={12} r={0.6} fill="hsl(220,20%,25%)" opacity={0.3} />
         </pattern>
         {/* Heat scale gradient */}
         <linearGradient id="hm-scale-grad" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%" stopColor="rgb(60,130,230)" />
-          <stop offset="50%" stopColor="rgb(255,220,50)" />
-          <stop offset="100%" stopColor="rgb(255,60,40)" />
+          <stop offset="0%" stopColor="hsl(210,75%,40%)" />
+          <stop offset="50%" stopColor="hsl(45,95%,55%)" />
+          <stop offset="100%" stopColor="hsl(10,95%,55%)" />
         </linearGradient>
+        {/* Glow for human dot */}
+        <radialGradient id="hm-dot-glow">
+          <stop offset="0%" stopColor="white" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="white" stopOpacity="0" />
+        </radialGradient>
       </defs>
-      <rect width={width} height={height} fill="url(#hm-grid)" />
+      <rect width={width} height={height} fill="url(#hm-dot-grid)" />
 
-      {/* Transform group for subtle zoom */}
+      {/* Zoom transform group */}
       <g transform={`translate(${width / 2},${height / 2}) scale(${scale}) translate(${-width / 2},${-height / 2})`}>
+
         {/* Dim overlay */}
         {dimOverlay > 0 && (
-          <rect width={width} height={height} fill="#0a0a0f" opacity={dimOverlay} />
+          <rect width={width} height={height} fill="#08080d" opacity={dimOverlay} />
         )}
 
-        {/* Grid panels */}
+        {/* Grid panels — staggered appearance with white stroke */}
         {cells.map((cell, i) => {
           const d = distances[i];
-          const colored = heatP > 0;
-          // wave: color spreads from human position
+          // Stagger: cells appear from center outward
+          const distFromCenter = Math.sqrt(
+            Math.pow(cell.cx - gridCenterX, 2) + Math.pow(cell.cy - gridCenterY, 2)
+          );
+          const maxCenterDist = gridSize * 0.72;
+          const stagger = clamp01(distFromCenter / maxCenterDist);
+          const cellAppear = clamp01((gridAppearP - stagger * 0.6) / 0.4);
+
+          // Heat wave: radial spread from human
           const waveDist = d;
-          const waveP = clamp01((heatP - waveDist * 0.6) / 0.4);
-          const fillColor = colored && waveP > 0 ? heatColor(d) : "hsl(220,10%,14%)";
-          const fillOpacity = colored ? lerp(0.7, 1, waveP) : setupP * 0.9;
+          const waveP = clamp01((heatP - waveDist * 0.5) / 0.5);
+
+          const hasHeat = heatP > 0 && waveP > 0;
+          const fillColor = hasHeat ? heatColor(d) : "transparent";
+          const fillOpacity = hasHeat ? waveP * 0.85 : 0;
+
+          // Stroke animation: draw-on effect
+          const perim = cellSize * 4;
+          const strokeDraw = cellAppear;
 
           return (
-            <g key={i}>
+            <g key={i} opacity={cellAppear}>
               <rect
                 x={cell.x}
                 y={cell.y}
-                width={cellW}
-                height={cellH}
-                rx={2}
+                width={cellSize}
+                height={cellSize}
+                rx={1}
                 fill={fillColor}
-                opacity={fillOpacity}
-                stroke="hsl(220,15%,22%)"
-                strokeWidth={0.5}
+                fillOpacity={fillOpacity}
+                stroke="hsl(220,15%,35%)"
+                strokeWidth={0.6}
+                strokeDasharray={perim}
+                strokeDashoffset={perim * (1 - strokeDraw)}
               />
-              {/* Distance text on panels */}
+              {/* Distance text */}
               {distTextP > 0 && (
                 <text
                   x={cell.cx}
-                  y={cell.cy + 4}
+                  y={cell.cy + 3}
                   textAnchor="middle"
-                  fontSize={Math.min(cellW, cellH) * 0.28}
+                  fontSize={cellSize * 0.35}
                   fill="white"
-                  opacity={distTextP * 0.8}
+                  opacity={distTextP * 0.7}
                   fontFamily="monospace"
                 >
                   {(d * 100).toFixed(0)}
@@ -201,112 +246,78 @@ export function HeatMapRenderer({ progress, width, height }: BlockRendererProps)
 
         {/* Center dots (scene 2) */}
         {dotsP > 0 &&
-          cells.map((cell, i) => (
-            <circle
-              key={`dot-${i}`}
-              cx={cell.cx}
-              cy={cell.cy}
-              r={2.5 * easeInOutCubic(dotsP)}
-              fill="white"
-              opacity={0.9 * dotsP}
-            />
-          ))}
-
-        {/* Measurement lines (scene 3) */}
-        {lineLen > 0 &&
           cells.map((cell, i) => {
-            const dx = cell.cx - humanDotX;
-            const dy = cell.cy - humanDotY;
-            const endX = humanDotX + dx * lineLen;
-            const endY = humanDotY + dy * lineLen;
+            const dotAppear = easeInOutCubic(clamp01(dotsP - (i / cells.length) * 0.5) / 0.5);
             return (
-              <line
-                key={`line-${i}`}
-                x1={humanDotX}
-                y1={humanDotY}
-                x2={endX}
-                y2={endY}
-                stroke="hsl(45,90%,60%)"
-                strokeWidth={0.8}
-                opacity={0.6}
+              <circle
+                key={`dot-${i}`}
+                cx={cell.cx}
+                cy={cell.cy}
+                r={1.5 * dotAppear}
+                fill="white"
+                opacity={0.8 * dotAppear}
               />
             );
           })}
 
-        {/* Human figure (top-down) */}
+        {/* Measurement lines (scene 3) */}
+        {lineLen > 0 &&
+          cells.map((cell, i) => {
+            const dx = cell.cx - dotX;
+            const dy = cell.cy - dotY;
+            const endX = dotX + dx * lineLen;
+            const endY = dotY + dy * lineLen;
+            return (
+              <line
+                key={`line-${i}`}
+                x1={dotX}
+                y1={dotY}
+                x2={endX}
+                y2={endY}
+                stroke="hsl(40,90%,60%)"
+                strokeWidth={0.5}
+                opacity={0.45}
+              />
+            );
+          })}
+
+        {/* Human figure using PNG */}
         <g opacity={humanOpacity}>
-          {/* body */}
-          <line
-            x1={humanX}
-            y1={humanY - bodyLen / 2}
-            x2={humanX}
-            y2={humanY + bodyLen / 2}
-            stroke="hsl(0,0%,75%)"
-            strokeWidth={2}
-            strokeLinecap="round"
+          <image
+            href={humanImg}
+            x={humanX - humanSize / 2}
+            y={humanY - humanSize / 2}
+            width={humanSize}
+            height={humanSize}
+            style={{ filter: "brightness(1.2)" }}
           />
-          {/* arms */}
-          <line
-            x1={humanX - vw(1.5)}
-            y1={humanY - bodyLen * 0.1}
-            x2={humanX + vw(1.5)}
-            y2={humanY - bodyLen * 0.1}
-            stroke="hsl(0,0%,75%)"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-          />
-          {/* legs */}
-          <line
-            x1={humanX}
-            y1={humanY + bodyLen / 2}
-            x2={humanX - vw(0.8)}
-            y2={humanY + bodyLen / 2 + vh(2)}
-            stroke="hsl(0,0%,75%)"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-          />
-          <line
-            x1={humanX}
-            y1={humanY + bodyLen / 2}
-            x2={humanX + vw(0.8)}
-            y2={humanY + bodyLen / 2 + vh(2)}
-            stroke="hsl(0,0%,75%)"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-          />
-          {/* head */}
-          <circle cx={humanX} cy={humanY - bodyLen / 2 - headR} r={headR} fill="hsl(0,0%,75%)" />
-          {/* glowing dot at feet */}
-          <circle cx={humanDotX} cy={humanDotY} r={4} fill="white">
-            {setupP > 0.5 && (
-              <animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite" />
+          {/* Glowing dot at center of human */}
+          <circle cx={dotX} cy={dotY} r={3} fill="white" opacity={0.9}>
+            {gridAppearP > 0.5 && (
+              <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite" />
             )}
           </circle>
-          <circle cx={humanDotX} cy={humanDotY} r={8} fill="white" opacity={0.15}>
-            {setupP > 0.5 && (
-              <animate attributeName="r" values="8;14;8" dur="2s" repeatCount="indefinite" />
-            )}
-          </circle>
+          <circle cx={dotX} cy={dotY} r={12} fill="url(#hm-dot-glow)" />
         </g>
       </g>
 
       {/* Heat scale bar (right side) */}
       {scaleBarP > 0 && (
-        <g opacity={scaleBarP} transform={`translate(${vw(90)},${vh(20)})`}>
+        <g opacity={scaleBarP} transform={`translate(${vw(88)},${vh(25)})`}>
           <rect
             x={0}
             y={0}
-            width={vw(2.5)}
-            height={vh(55)}
-            rx={4}
+            width={vw(1.8)}
+            height={vh(45)}
+            rx={vw(0.9)}
             fill="url(#hm-scale-grad)"
             stroke="hsl(220,15%,30%)"
             strokeWidth={0.5}
           />
-          <text x={vw(1.25)} y={-8} textAnchor="middle" fontSize={10} fill="hsl(0,0%,60%)" fontFamily="monospace">
-            Close
+          <text x={vw(0.9)} y={-8} textAnchor="middle" fontSize={9} fill="hsl(0,0%,55%)" fontFamily="monospace">
+            Near
           </text>
-          <text x={vw(1.25)} y={vh(55) + 16} textAnchor="middle" fontSize={10} fill="hsl(0,0%,60%)" fontFamily="monospace">
+          <text x={vw(0.9)} y={vh(45) + 14} textAnchor="middle" fontSize={9} fill="hsl(0,0%,55%)" fontFamily="monospace">
             Far
           </text>
         </g>
@@ -318,9 +329,9 @@ export function HeatMapRenderer({ progress, width, height }: BlockRendererProps)
           x={vw(50)}
           y={vh(8)}
           textAnchor="middle"
-          fontSize={14}
+          fontSize={13}
           fill="white"
-          opacity={centerTextOp * 0.7}
+          opacity={centerTextOp * 0.6}
           fontFamily="monospace"
           letterSpacing={2}
         >
@@ -332,9 +343,9 @@ export function HeatMapRenderer({ progress, width, height }: BlockRendererProps)
           x={vw(50)}
           y={vh(8)}
           textAnchor="middle"
-          fontSize={13}
-          fill="hsl(45,90%,60%)"
-          opacity={measureTextOp * 0.7}
+          fontSize={12}
+          fill="hsl(40,90%,60%)"
+          opacity={measureTextOp * 0.6}
           fontFamily="monospace"
           letterSpacing={1.5}
         >
