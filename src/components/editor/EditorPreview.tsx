@@ -10,6 +10,7 @@ import "@/blocks/curve-vector";
 import "@/blocks/tangent-boxes";
 import "@/blocks/angle-measure";
 import "@/blocks/dot-product";
+import "@/blocks/heat-map";
 
 interface PreviewProps {
   playback: {
