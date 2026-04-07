@@ -42,6 +42,8 @@ import { HeatMapRenderer } from "./heat-map/HeatMapRenderer";
 import { HEAT_MAP_TYPE } from "./heat-map/config";
 import { SunStudyRenderer } from "./sun-study/SunStudyRenderer";
 import { SUN_STUDY_TYPE } from "./sun-study/config";
+import { NormalFlipRenderer } from "./normal-flip/NormalFlipRenderer";
+import { NORMAL_FLIP_TYPE } from "./normal-flip/config";
 
 registerBlockRenderer(TRIANGLE_SLIDER_TYPE, TriangleSliderRenderer as RendererEntry);
 registerBlockRenderer(CURVE_VECTOR_TYPE, CurveVectorRenderer as RendererEntry);
@@ -50,3 +52,4 @@ registerBlockRenderer(ANGLE_MEASURE_TYPE, AngleMeasureRenderer as RendererEntry)
 registerBlockRenderer(DOT_PRODUCT_TYPE, DotProductRenderer as RendererEntry);
 registerBlockRenderer(HEAT_MAP_TYPE, HeatMapRenderer as RendererEntry);
 registerBlockRenderer(SUN_STUDY_TYPE, SunStudyRenderer as RendererEntry);
+registerBlockRenderer(NORMAL_FLIP_TYPE, NormalFlipRenderer as RendererEntry);
