@@ -12,6 +12,7 @@ import "@/blocks/angle-measure";
 import "@/blocks/dot-product";
 import "@/blocks/heat-map";
 import "@/blocks/sun-study";
+import "@/blocks/normal-flip";
 
 interface PreviewProps {
   playback: {
