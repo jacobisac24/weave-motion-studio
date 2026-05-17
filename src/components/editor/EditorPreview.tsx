@@ -13,6 +13,7 @@ import "@/blocks/dot-product";
 import "@/blocks/heat-map";
 import "@/blocks/sun-study";
 import "@/blocks/normal-flip";
+import "@/blocks/spiral-staircase";
 
 interface PreviewProps {
   playback: {
