@@ -44,6 +44,8 @@ import { SunStudyRenderer } from "./sun-study/SunStudyRenderer";
 import { SUN_STUDY_TYPE } from "./sun-study/config";
 import { NormalFlipRenderer } from "./normal-flip/NormalFlipRenderer";
 import { NORMAL_FLIP_TYPE } from "./normal-flip/config";
+import { SpiralStaircaseRenderer } from "./spiral-staircase/SpiralStaircaseRenderer";
+import { SPIRAL_STAIRCASE_TYPE } from "./spiral-staircase/config";
 
 registerBlockRenderer(TRIANGLE_SLIDER_TYPE, TriangleSliderRenderer as RendererEntry);
 registerBlockRenderer(CURVE_VECTOR_TYPE, CurveVectorRenderer as RendererEntry);
@@ -53,3 +55,4 @@ registerBlockRenderer(DOT_PRODUCT_TYPE, DotProductRenderer as RendererEntry);
 registerBlockRenderer(HEAT_MAP_TYPE, HeatMapRenderer as RendererEntry);
 registerBlockRenderer(SUN_STUDY_TYPE, SunStudyRenderer as RendererEntry);
 registerBlockRenderer(NORMAL_FLIP_TYPE, NormalFlipRenderer as RendererEntry);
+registerBlockRenderer(SPIRAL_STAIRCASE_TYPE, SpiralStaircaseRenderer as RendererEntry);
